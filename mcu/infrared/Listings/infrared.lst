@@ -1,0 +1,179 @@
+C51 COMPILER V9.56.0.0   INFRARED                                                          04/17/2017 22:28:46 PAGE 1   
+
+
+C51 COMPILER V9.56.0.0, COMPILATION OF MODULE INFRARED
+OBJECT MODULE PLACED IN .\Objects\infrared.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE infrared.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\
+                    -infrared.lst) TABS(2) OBJECT(.\Objects\infrared.obj)
+
+line level    source
+
+   1          /**
+   2           * 将红外数据接收到后，发往UART
+   3           * 计时使用定时器T0
+   4           * UART使用定时器T1
+   5           */
+   6          
+   7          #include "infrared.h"
+   8          
+   9          uchar idata buffer[128];
+  10          uchar bufferLength = 0;
+  11          volatile unsigned char sending;
+  12          
+  13          uint  uintBuffer;
+  14          uchar ucharBuffer;
+  15          
+  16          void InitBuffer(){
+  17   1        uchar i;
+  18   1        for(i = 0; i < 128; i++){
+  19   2          buffer[i] = 0x00;
+  20   2        }
+  21   1      }
+  22          
+  23          void main(){
+  24   1        EA = 1;       /* 总中断使能 */
+  25   1        
+  26   1        InitBuffer();
+  27   1        InitInfrared();
+  28   1        InitUART();
+  29   1      }
+  30          
+  31          void EXINT1_ISR() interrupt 2{
+  32   1        uchar j;
+  33   1        uint  time;
+  34   1      
+  35   1        time = GetLowTime();
+  36   1        if(time < 7833 || time > 8755){       /* 判断是否在9ms以内 */
+  37   2          IE1 = 0;
+  38   2          return;
+  39   2        }
+  40   1      
+  41   1        time = GetHighTime();
+  42   1        if(time < 3686 || time > 4608){       /* 判断是否在4.5ms以内 */
+  43   2          IE1 = 0;
+  44   2          return; 
+  45   2        }
+  46   1      
+  47   1        /* 接收红外字节，直到高电平时间长于1751，延时一会儿发送UART */
+  48   1        while(1){
+  49   2          for(j = 0; j < 8; j++){
+  50   3            time = GetLowTime();
+  51   3            if(time < 313 || time > 718){       /* 判断是否是560us */
+  52   4              IE1 = 0;
+  53   4              return;
+  54   4            }
+C51 COMPILER V9.56.0.0   INFRARED                                                          04/17/2017 22:28:46 PAGE 2   
+
+  55   3            time = GetHighTime();
+  56   3            if(time > 313 && time < 718){       /* 接收到了0 */
+  57   4              buffer[bufferLength] = buffer[bufferLength] << 1;
+  58   4            }else if(time > 1345 && time < 1751){   /* 接收到了1 */
+  59   4              buffer[bufferLength] = buffer[bufferLength] << 1;
+  60   4              buffer[bufferLength] |= 0x01;
+  61   4            }else{                    /* >=1751时表示结束位，无信号了 */
+  62   4              IE1 = 0;
+  63   4              uintBuffer = 5000;
+  64   4              while(uintBuffer--);
+  65   4      
+  66   4              for(ucharBuffer = 0; ucharBuffer <= bufferLength; ucharBuffer++){
+  67   5                SBUF = buffer[ucharBuffer];
+  68   5                sending = 1;
+  69   5                while(sending);   /* 发送每个字节后都等UART中断中将sending复位，防止错乱 */
+  70   5              }
+  71   4      
+  72   4              /* 最终发送一下最后一位的比特数，防止红外数据不是8比特的整数倍 */
+  73   4              SBUF = j;
+  74   4              sending = 1;
+  75   4              while(sending);
+  76   4      
+  77   4              bufferLength = 0;
+  78   4              return;
+  79   4            }
+  80   3          }
+  81   2      
+  82   2          bufferLength++;
+  83   2        }
+  84   1      }
+  85          
+  86          uint GetHighTime(){
+  87   1        TH0 = 0;
+  88   1        TL0 = 0;        /* 计数器的高低4位，初始设为0 */
+  89   1      
+  90   1        TR0 = 1;        /* 计数器计时使能 */
+  91   1        while(IR_INPUT){
+  92   2          if(TH0 > 0x40)    /* 如果高4位大于某一阈值，表示异常 */
+  93   2            break;
+  94   2        }
+  95   1        TR0 = 0;        /* 计数器失能 */
+  96   1        return TH0 * 256 + TL0; /* 高4位*256 + 低4位 = 计时开始后跑过的时间 */
+  97   1      }
+  98          
+  99          uint GetLowTime(){
+ 100   1        TH0 = 0;
+ 101   1        TL0 = 0;        /* 计数器的高低4位，初始设为0 */
+ 102   1      
+ 103   1        TR0 = 1;        /* 计数器计时使能 */
+ 104   1        while(!IR_INPUT){
+ 105   2          if(TH0 > 0x40)    /* 如果高4位大于某一阈值，表示异常 */
+ 106   2            break;
+ 107   2        }
+ 108   1        TR0 = 0;        /* 计数器失能 */
+ 109   1        return TH0 * 256 + TL0; /* 高4位*256 + 低4位 = 计时开始后跑过的时间 */
+ 110   1      }
+ 111          
+ 112          /**
+ 113           * 计时使用T0
+ 114           */
+ 115          void InitInfrared(){
+ 116   1        IR_INPUT = 1;
+C51 COMPILER V9.56.0.0   INFRARED                                                          04/17/2017 22:28:46 PAGE 3   
+
+ 117   1      
+ 118   1        TMOD &= 0xF0;
+ 119   1        TMOD |= 0x01;       /* 将TMOD 高4位不变，低4位置0001，使能定时器T0 */
+ 120   1      
+ 121   1        TR0 = 0;          /* TR:计时使能，置1计时，置0停止 */
+ 122   1        ET0 = 0;          /* ET:定时器中断使能，置1使能，置0失能 */
+ 123   1        IT1 = 1;          /* IT:外部中断方式选择，0:低电平触发，1:下降沿触发 */
+ 124   1        EX1 = 1;          /* EX:外部中断使能，1:使能，0:失能 */
+ 125   1      }
+ 126          
+ 127          /**
+ 128           * 串口通信使用定时器T1
+ 129           */
+ 130          void InitUART(){
+ 131   1        SCON =  0x50;
+ 132   1        
+ 133   1        TMOD |= 0x20;
+ 134   1        TMOD &= 0xEF;   //设置定时器1，工作在2模式，串口中断使用
+ 135   1        
+ 136   1        TH1 = 0xFD;
+ 137   1        TL1 = 0xFD;     //波特率9600
+ 138   1        
+ 139   1        TR1 = 1;      //TCON中的TR1，定时器1开始计时
+ 140   1        ES  = 1;      //串口中断打开
+ 141   1      
+ 142   1        IP = 0x10;
+ 143   1      }
+ 144          
+ 145          void UartInterrupt() interrupt 4{
+ 146   1        if(TI){       //本次中断是发送中断
+ 147   2          TI = 0;     //发送完了清零
+ 148   2          REN = 1;    //发送完了再接受
+ 149   2          sending = 0;  //清空发射标志
+ 150   2        }
+ 151   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    435    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      5       1
+   IDATA SIZE       =    128    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
