@@ -1,4 +1,4 @@
-C51 COMPILER V9.56.0.0   INFRARED                                                          04/17/2017 22:28:46 PAGE 1   
+C51 COMPILER V9.56.0.0   INFRARED                                                          05/13/2017 00:09:20 PAGE 1   
 
 
 C51 COMPILER V9.56.0.0, COMPILATION OF MODULE INFRARED
@@ -15,162 +15,288 @@ line level    source
    5           */
    6          
    7          #include "infrared.h"
-   8          
-   9          uchar idata buffer[128];
-  10          uchar bufferLength = 0;
-  11          volatile unsigned char sending;
-  12          
-  13          uint  uintBuffer;
-  14          uchar ucharBuffer;
-  15          
-  16          void InitBuffer(){
-  17   1        uchar i;
-  18   1        for(i = 0; i < 128; i++){
-  19   2          buffer[i] = 0x00;
-  20   2        }
-  21   1      }
+   8          #include "intrins.h"
+   9          
+  10          uchar idata buffer[128];
+  11          uchar bufferLength = 0;
+  12          volatile unsigned char sending;
+  13          //C3 E0 00 00 05 00 00 00 00 04 00 A0 F1
+  14          //C3 E0 00 00 05 00 00 00 00 00 00 A0 F6 
+  15          uchar sendCmd1[] = {0xC3, 0xE0, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0xA0, 0xF1};
+  16          uchar sendCmd2[] = {0xC3, 0xE0, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xA0, 0xF6};
+  17          uchar sendIndex = 1;
+  18          
+  19          sbit  SendDataPin = P1^5; /* 定义红外发射开关引脚 */
+  20          sbit  SendCmdPin  = P1^6; /* 定义发射按钮微动开关引脚，上拉电阻维持高电平，微动�
+             -�下有个下降沿触发 */
+  21          uchar canSend     = 1;    /* 表示是否可以接收发送指令，上升沿后才可发送 */
   22          
-  23          void main(){
-  24   1        EA = 1;       /* 总中断使能 */
-  25   1        
-  26   1        InitBuffer();
-  27   1        InitInfrared();
-  28   1        InitUART();
-  29   1      }
-  30          
-  31          void EXINT1_ISR() interrupt 2{
-  32   1        uchar j;
-  33   1        uint  time;
-  34   1      
-  35   1        time = GetLowTime();
-  36   1        if(time < 7833 || time > 8755){       /* 判断是否在9ms以内 */
-  37   2          IE1 = 0;
-  38   2          return;
-  39   2        }
-  40   1      
-  41   1        time = GetHighTime();
-  42   1        if(time < 3686 || time > 4608){       /* 判断是否在4.5ms以内 */
-  43   2          IE1 = 0;
-  44   2          return; 
-  45   2        }
-  46   1      
-  47   1        /* 接收红外字节，直到高电平时间长于1751，延时一会儿发送UART */
-  48   1        while(1){
-  49   2          for(j = 0; j < 8; j++){
-  50   3            time = GetLowTime();
-  51   3            if(time < 313 || time > 718){       /* 判断是否是560us */
-  52   4              IE1 = 0;
-  53   4              return;
+  23          uint  uintBuffer;
+  24          uchar ucharBuffer;
+  25          uchar shake;        /* 去抖变量 */
+  26          
+  27          void InitBuffer(){
+  28   1        uchar i;
+  29   1        for(i = 0; i < 128; i++){
+  30   2          buffer[i] = 0x00;
+  31   2        }
+  32   1      }
+  33          
+  34          void main(){
+  35   1        EA = 1;       /* 总中断使能 */
+  36   1        canSend = 1;
+  37   1        
+  38   1        InitBuffer();
+  39   1        InitInfrared();
+  40   1        InitUART();
+  41   1      
+  42   1        while(1){
+  43   2          /* 微动开关引脚置位，保证其可读 */
+  44   2          SendCmdPin = 1;
+  45   2      
+  46   2          ucharBuffer = SendCmdPin;
+  47   2      
+  48   2          /* 第一阶段，canSend置位 */
+  49   2          if(canSend == 0 && SendCmdPin == 1){
+  50   3            /* 不可发送时，接收到上升信号，此时canSend置为可发送 */
+  51   3            shake = 10;
+  52   3            while(SendCmdPin && shake){
+  53   4              shake--;
+C51 COMPILER V9.56.0.0   INFRARED                                                          05/13/2017 00:09:20 PAGE 2   
+
   54   4            }
-C51 COMPILER V9.56.0.0   INFRARED                                                          04/17/2017 22:28:46 PAGE 2   
+  55   3            if(!shake)              /* 去抖 */
+  56   3              canSend = 1;
+  57   3            continue;
+  58   3          }
+  59   2      
+  60   2          /* 第二阶段，发送红外 */
+  61   2          if(canSend == 1 && SendCmdPin == 0){
+  62   3            shake = 10;
+  63   3            while(!SendCmdPin && shake){
+  64   4              shake--;
+  65   4            }
+  66   3            if(!shake){             /* 去抖 */
+  67   4              canSend = 0;
+  68   4              SendInfraredSignal();
+  69   4            }
+  70   3            continue;
+  71   3          }
+  72   2        }
+  73   1      }
+  74          
+  75          /**
+  76           * interrupt 0 : 外部中断0 P3.2
+  77           * interrupt 1 : 定时器中断0
+  78           * interrupt 2 : 外部中断1 P3.3
+  79           * interrupt 3 : 定时器中断1
+  80           * interrupt 4 : 串口中断
+  81           */
+  82          void EXINT1_ISR() interrupt 2{
+  83   1        uchar j;
+  84   1        uint  time;
+  85   1      
+  86   1        time = GetLowTime();
+  87   1        if(time < 7833 || time > 8755){       /* 判断是否在9ms以内 */
+  88   2          IE1 = 0;
+  89   2          return;
+  90   2        }
+  91   1      
+  92   1        time = GetHighTime();
+  93   1        if(time < 3686 || time > 4608){       /* 判断是否在4.5ms以内 */
+  94   2          IE1 = 0;
+  95   2          return; 
+  96   2        }
+  97   1      
+  98   1        /* 接收红外字节，直到高电平时间长于1751，延时一会儿发送UART */
+  99   1        while(1){
+ 100   2          for(j = 0; j < 8; j++){
+ 101   3            time = GetLowTime();
+ 102   3            if(time < 313 || time > 718){       /* 判断是否是560us */
+ 103   4              IE1 = 0;
+ 104   4              return;
+ 105   4            }
+ 106   3            time = GetHighTime();
+ 107   3            if(time > 313 && time < 718){       /* 接收到了0 */
+ 108   4              buffer[bufferLength] = buffer[bufferLength] << 1;
+ 109   4            }else if(time > 1345 && time < 1751){   /* 接收到了1 */
+ 110   4              buffer[bufferLength] = buffer[bufferLength] << 1;
+ 111   4              buffer[bufferLength] |= 0x01;
+ 112   4            }else{                    /* >=1751时表示结束位，无信号了 */
+ 113   4              IE1 = 0;
+ 114   4              uintBuffer = 5000;
+ 115   4              while(uintBuffer--);
+C51 COMPILER V9.56.0.0   INFRARED                                                          05/13/2017 00:09:20 PAGE 3   
 
-  55   3            time = GetHighTime();
-  56   3            if(time > 313 && time < 718){       /* 接收到了0 */
-  57   4              buffer[bufferLength] = buffer[bufferLength] << 1;
-  58   4            }else if(time > 1345 && time < 1751){   /* 接收到了1 */
-  59   4              buffer[bufferLength] = buffer[bufferLength] << 1;
-  60   4              buffer[bufferLength] |= 0x01;
-  61   4            }else{                    /* >=1751时表示结束位，无信号了 */
-  62   4              IE1 = 0;
-  63   4              uintBuffer = 5000;
-  64   4              while(uintBuffer--);
-  65   4      
-  66   4              for(ucharBuffer = 0; ucharBuffer <= bufferLength; ucharBuffer++){
-  67   5                SBUF = buffer[ucharBuffer];
-  68   5                sending = 1;
-  69   5                while(sending);   /* 发送每个字节后都等UART中断中将sending复位，防止错乱 */
-  70   5              }
-  71   4      
-  72   4              /* 最终发送一下最后一位的比特数，防止红外数据不是8比特的整数倍 */
-  73   4              SBUF = j;
-  74   4              sending = 1;
-  75   4              while(sending);
-  76   4      
-  77   4              bufferLength = 0;
-  78   4              return;
-  79   4            }
-  80   3          }
-  81   2      
-  82   2          bufferLength++;
-  83   2        }
-  84   1      }
-  85          
-  86          uint GetHighTime(){
-  87   1        TH0 = 0;
-  88   1        TL0 = 0;        /* 计数器的高低4位，初始设为0 */
-  89   1      
-  90   1        TR0 = 1;        /* 计数器计时使能 */
-  91   1        while(IR_INPUT){
-  92   2          if(TH0 > 0x40)    /* 如果高4位大于某一阈值，表示异常 */
-  93   2            break;
-  94   2        }
-  95   1        TR0 = 0;        /* 计数器失能 */
-  96   1        return TH0 * 256 + TL0; /* 高4位*256 + 低4位 = 计时开始后跑过的时间 */
-  97   1      }
-  98          
-  99          uint GetLowTime(){
- 100   1        TH0 = 0;
- 101   1        TL0 = 0;        /* 计数器的高低4位，初始设为0 */
- 102   1      
- 103   1        TR0 = 1;        /* 计数器计时使能 */
- 104   1        while(!IR_INPUT){
- 105   2          if(TH0 > 0x40)    /* 如果高4位大于某一阈值，表示异常 */
- 106   2            break;
- 107   2        }
- 108   1        TR0 = 0;        /* 计数器失能 */
- 109   1        return TH0 * 256 + TL0; /* 高4位*256 + 低4位 = 计时开始后跑过的时间 */
- 110   1      }
- 111          
- 112          /**
- 113           * 计时使用T0
- 114           */
- 115          void InitInfrared(){
- 116   1        IR_INPUT = 1;
-C51 COMPILER V9.56.0.0   INFRARED                                                          04/17/2017 22:28:46 PAGE 3   
-
- 117   1      
- 118   1        TMOD &= 0xF0;
- 119   1        TMOD |= 0x01;       /* 将TMOD 高4位不变，低4位置0001，使能定时器T0 */
- 120   1      
- 121   1        TR0 = 0;          /* TR:计时使能，置1计时，置0停止 */
- 122   1        ET0 = 0;          /* ET:定时器中断使能，置1使能，置0失能 */
- 123   1        IT1 = 1;          /* IT:外部中断方式选择，0:低电平触发，1:下降沿触发 */
- 124   1        EX1 = 1;          /* EX:外部中断使能，1:使能，0:失能 */
- 125   1      }
- 126          
- 127          /**
- 128           * 串口通信使用定时器T1
- 129           */
- 130          void InitUART(){
- 131   1        SCON =  0x50;
- 132   1        
- 133   1        TMOD |= 0x20;
- 134   1        TMOD &= 0xEF;   //设置定时器1，工作在2模式，串口中断使用
- 135   1        
- 136   1        TH1 = 0xFD;
- 137   1        TL1 = 0xFD;     //波特率9600
- 138   1        
- 139   1        TR1 = 1;      //TCON中的TR1，定时器1开始计时
- 140   1        ES  = 1;      //串口中断打开
- 141   1      
- 142   1        IP = 0x10;
- 143   1      }
- 144          
- 145          void UartInterrupt() interrupt 4{
- 146   1        if(TI){       //本次中断是发送中断
- 147   2          TI = 0;     //发送完了清零
- 148   2          REN = 1;    //发送完了再接受
- 149   2          sending = 0;  //清空发射标志
- 150   2        }
+ 116   4      
+ 117   4              for(ucharBuffer = 0; ucharBuffer < bufferLength; ucharBuffer++){
+ 118   5                SBUF = buffer[ucharBuffer];
+ 119   5                sending = 1;
+ 120   5                while(sending);   /* 发送每个字节后都等UART中断中将sending复位，防止错乱 */
+ 121   5              }     
+ 122   4      
+ 123   4              bufferLength = 0;
+ 124   4              return;
+ 125   4            }
+ 126   3          }
+ 127   2      
+ 128   2          bufferLength++;
+ 129   2        }
+ 130   1      }
+ 131          
+ 132          /**
+ 133           * 延时微秒级别，公式为延时的微秒数值 * 0.9215
+ 134           * @param ns [description]
+ 135           */
+ 136          void delay(uint us){
+ 137   1        while(us)us--;
+ 138   1      }
+ 139          
+ 140          uint GetHighTime(){
+ 141   1        TH0 = 0;
+ 142   1        TL0 = 0;        /* 计数器的高低4位，初始设为0 */
+ 143   1      
+ 144   1        TR0 = 1;        /* 计数器计时使能 */
+ 145   1        while(IR_INPUT){
+ 146   2          if(TH0 > 0x40)    /* 如果高4位大于某一阈值，表示异常 */
+ 147   2            break;
+ 148   2        }
+ 149   1        TR0 = 0;        /* 计数器失能 */
+ 150   1        return TH0 * 256 + TL0; /* 高4位*256 + 低4位 = 计时开始后跑过的时间 */
  151   1      }
+ 152          
+ 153          uint GetLowTime(){
+ 154   1        TH0 = 0;
+ 155   1        TL0 = 0;        /* 计数器的高低4位，初始设为0 */
+ 156   1      
+ 157   1        TR0 = 1;        /* 计数器计时使能 */
+ 158   1        while(!IR_INPUT){
+ 159   2          if(TH0 > 0x40)    /* 如果高4位大于某一阈值，表示异常 */
+ 160   2            break;
+ 161   2        }
+ 162   1        TR0 = 0;        /* 计数器失能 */
+ 163   1        return TH0 * 256 + TL0; /* 高4位*256 + 低4位 = 计时开始后跑过的时间 */
+ 164   1      }
+ 165          
+ 166          /**
+ 167           * 计时使用T0
+ 168           */
+ 169          void InitInfrared(){
+ 170   1        IR_INPUT = 1;
+ 171   1      
+ 172   1        TMOD &= 0xF0;
+ 173   1        TMOD |= 0x01;       /* 将TMOD 高4位不变，低4位置0001，使能定时器T0 */
+ 174   1      
+ 175   1        TR0 = 0;          /* TR:计时使能，置1计时，置0停止 */
+ 176   1        ET0 = 0;          /* ET:定时器中断使能，置1使能，置0失能 */
+ 177   1        IT1 = 1;          /* IT:外部中断方式选择，0:低电平触发，1:下降沿触发 */
+C51 COMPILER V9.56.0.0   INFRARED                                                          05/13/2017 00:09:20 PAGE 4   
+
+ 178   1        EX1 = 1;          /* EX:外部中断使能，1:使能，0:失能 */
+ 179   1      
+ 180   1        SendCmdPin = 1;       /* 微动开关引脚置1，上拉电阻维持，保证其可读 */
+ 181   1        SendDataPin = 0;      /* 发射开关置0，维持低电平输出 */
+ 182   1      }
+ 183          
+ 184          /**
+ 185           * 串口通信使用定时器T1
+ 186           */
+ 187          void InitUART(){
+ 188   1        SCON =  0x50;
+ 189   1        
+ 190   1        TMOD |= 0x20;
+ 191   1        TMOD &= 0xEF;   //设置定时器1，工作在2模式，串口中断使用
+ 192   1        
+ 193   1        TH1 = 0xFD;
+ 194   1        TL1 = 0xFD;     //波特率9600
+ 195   1        
+ 196   1        TR1 = 1;      //TCON中的TR1，定时器1开始计时
+ 197   1        ES  = 1;      //串口中断打开
+ 198   1      
+ 199   1        IP = 0x10;
+ 200   1      }
+ 201          
+ 202          void UartInterrupt() interrupt 4{
+ 203   1        if(TI){       //本次中断是发送中断
+ 204   2          TI = 0;     //发送完了清零
+ 205   2          REN = 1;    //发送完了再接受
+ 206   2          sending = 0;  //清空发射标志
+ 207   2        }
+ 208   1      }
+ 209          
+ 210          /**
+ 211           * 红外发射一个字节，从高位向低位发射
+ 212           * 0： 560us高电平，560us低电平
+ 213           * 1： 560us高电平，1690us低电平
+ 214           */
+ 215          void sendInfraredByte(uchar dat){
+ 216   1        uchar pos2;
+ 217   1      
+ 218   1        for(pos2 = 0; pos2 < 8; pos2++){
+ 219   2          if((dat & (0x80 >> pos2)) == 0x00){
+ 220   3            /* 发射0 */
+ 221   3            SendDataPin = 1;
+ 222   3            delay(65);
+ 223   3            SendDataPin = 0;
+ 224   3            delay(65);
+ 225   3            SendDataPin = 1;
+ 226   3          }else{
+ 227   3            /* 发射1 */
+ 228   3            SendDataPin = 1;
+ 229   3            delay(65);
+ 230   3            SendDataPin = 0;
+ 231   3            delay(190);
+ 232   3            SendDataPin = 1;
+ 233   3          }
+ 234   2        }
+ 235   1      }
+ 236          
+ 237          /* 发射红外信号 */
+ 238          void SendInfraredSignal(){
+ 239   1        uchar pos;
+C51 COMPILER V9.56.0.0   INFRARED                                                          05/13/2017 00:09:20 PAGE 5   
+
+ 240   1        char* sendCmd;
+ 241   1      
+ 242   1        if(sendIndex == 0){
+ 243   2          sendIndex = 1;
+ 244   2          sendCmd = sendCmd1;
+ 245   2        }else{
+ 246   2          sendIndex = 0;
+ 247   2          sendCmd = sendCmd2;
+ 248   2        }
+ 249   1      
+ 250   1        EX1 = 0;
+ 251   1      
+ 252   1        /* 9ms高电平 */
+ 253   1        SendDataPin = 1;
+ 254   1        delay(1040);
+ 255   1      
+ 256   1        /* 4.5ms低电平 */
+ 257   1        SendDataPin = 0;
+ 258   1        delay(510);
+ 259   1      
+ 260   1        /**
+ 261   1         * 按照数组中的数据依次向外发射
+ 262   1         */
+ 263   1        for(pos = 0; pos < 13; pos++){
+ 264   2          sendInfraredByte(sendCmd[pos]);
+ 265   2        }
+ 266   1      
+ 267   1        SendDataPin = 1;
+ 268   1        delay(65);
+ 269   1        SendDataPin = 0;
+ 270   1      
+ 271   1        EX1 = 1;
+ 272   1      }
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =    435    ----
+   CODE SIZE        =    669    ----
    CONSTANT SIZE    =   ----    ----
    XDATA SIZE       =   ----    ----
    PDATA SIZE       =   ----    ----
-   DATA SIZE        =      5       1
+   DATA SIZE        =     34       5
    IDATA SIZE       =    128    ----
    BIT SIZE         =   ----    ----
 END OF MODULE INFORMATION.

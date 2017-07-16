@@ -10,10 +10,14 @@
 uchar idata buffer[128];
 uchar bufferLength = 0;
 volatile unsigned char sending;
-uchar sendCmd[] = {0xC3, 0xE1, 0x00, 0x00, 0x04, 0x02, 0x01, 0x00, 0x00, 0x04, 0x00, 0xA0, 0xF2, 0x00};
+//C3 E0 00 00 05 00 00 00 00 04 00 A0 F1
+//C3 E0 00 00 05 00 00 00 00 00 00 A0 F6 
+uchar sendCmd1[] = {0xC3, 0xE0, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0xA0, 0xF1};
+uchar sendCmd2[] = {0xC3, 0xE0, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xA0, 0xF6};
+uchar sendIndex = 1;
 
-sbit  SendDataPin = P1^0;	/* 定义红外发射开关引脚 */
-sbit  SendCmdPin  = P1^1;	/* 定义发射按钮微动开关引脚，上拉电阻维持高电平，微动按下有个下降沿触发 */
+sbit  SendDataPin = P1^5;	/* 定义红外发射开关引脚 */
+sbit  SendCmdPin  = P1^6;	/* 定义发射按钮微动开关引脚，上拉电阻维持高电平，微动按下有个下降沿触发 */
 uchar canSend     = 1;		/* 表示是否可以接收发送指令，上升沿后才可发送 */
 
 uint  uintBuffer;
@@ -110,7 +114,7 @@ void EXINT1_ISR() interrupt 2{
 				uintBuffer = 5000;
 				while(uintBuffer--);
 
-				for(ucharBuffer = 0; ucharBuffer <= bufferLength; ucharBuffer++){
+				for(ucharBuffer = 0; ucharBuffer < bufferLength; ucharBuffer++){
 					SBUF = buffer[ucharBuffer];
 					sending = 1;
 					while(sending);		/* 发送每个字节后都等UART中断中将sending复位，防止错乱 */
@@ -233,6 +237,15 @@ void sendInfraredByte(uchar dat){
 /* 发射红外信号 */
 void SendInfraredSignal(){
 	uchar pos;
+	char* sendCmd;
+
+	if(sendIndex == 0){
+		sendIndex = 1;
+		sendCmd = sendCmd1;
+	}else{
+		sendIndex = 0;
+		sendCmd = sendCmd2;
+	}
 
 	EX1 = 0;
 
@@ -247,10 +260,12 @@ void SendInfraredSignal(){
 	/**
 	 * 按照数组中的数据依次向外发射
 	 */
-	for(pos = 0; pos < 14; pos++){
+	for(pos = 0; pos < 13; pos++){
 		sendInfraredByte(sendCmd[pos]);
 	}
 
+	SendDataPin = 1;
+	delay(65);
 	SendDataPin = 0;
 
 	EX1 = 1;
