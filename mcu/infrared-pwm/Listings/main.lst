@@ -1,0 +1,59 @@
+C51 COMPILER V9.56.0.0   MAIN                                                              07/17/2017 23:15:45 PAGE 1   
+
+
+C51 COMPILER V9.56.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\main
+                    -.lst) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          #include <STC15F2K.h>
+   2          #include <intrins.h>
+   3          
+   4          #define FOSC 19456000L
+   5          #define CCP_S0  0x10  //P_SW1.4
+   6          #define CCP_S1  0x20  //P_SW1.5
+   7          
+   8          void delay(u16 us){
+   9   1        while(us)us--;
+  10   1      }
+  11          
+  12          int main(){
+  13   1        ACC   = P_SW1;
+  14   1        ACC   &=  ~(CCP_S0|CCP_S1);   //CCP_S0=0, CCP_S1=0
+  15   1        P_SW1 = ACC;          //P1.1:CCP0 , P1.0:CCP1 , P3.7:CCP2
+  16   1      
+  17   1        CCON = 0;   //初始化PCA控制寄存器
+  18   1        CL   = 0;   //复位PCA
+  19   1        CH   = 0;
+  20   1        CMOD = 0x0A;  //设置PCA时钟源
+  21   1      
+  22   1        PCA_PWM0  = 0x40;   //7位，频率 = 19456000/4/128 = 38000
+  23   1        CCAP0H = CCAP0L = 0x59;   //占空比 = (0x7F - 0x59) / 0x7F = (127 - 89)/127 = 29.9%
+  24   1        CCAPM0 = 0x42;
+  25   1      
+  26   1        CR = 1;           //PCA定时器开始工作
+  27   1      
+  28   1        P00 = 1;
+  29   1        while(1){
+  30   2          delay(100);
+  31   2          P00 = 0;
+  32   2          delay(100);
+  33   2          P00 = 1;
+  34   2        }
+  35   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     64    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

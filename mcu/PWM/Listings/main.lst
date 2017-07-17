@@ -1,4 +1,4 @@
-C51 COMPILER V9.56.0.0   MAIN                                                              07/16/2017 22:30:01 PAGE 1   
+C51 COMPILER V9.56.0.0   MAIN                                                              07/17/2017 22:43:51 PAGE 1   
 
 
 C51 COMPILER V9.56.0.0, COMPILATION OF MODULE MAIN
@@ -16,7 +16,7 @@ line level    source
    6           * ACC和P_SW1的作用是CCP通道选择，也就是CCP0,CCP1,CCP3分别作用的引脚（CCP是复用的
              -，有多种选择）
    7           */
-   8          #define FOSC 18432000L
+   8          #define FOSC 19456000L
    9          #define CCP_S0  0x10  //P_SW1.4
   10          #define CCP_S1  0x20  //P_SW1.5
   11          
@@ -42,46 +42,50 @@ line level    source
   31   1        CCON = 0;   //初始化PCA控制寄存器
   32   1        CL   = 0;   //复位PCA
   33   1        CH   = 0;
-  34   1        CMOD = 0x02;  //设置PCA时钟源
+  34   1        CMOD = 0x0A;  //设置PCA时钟源
   35   1                //CMOD:8bit:CIDL - - - CPS2 CPS1 CPS0 ECF
   36   1                //CIDL:空闲模式下是否停止PCA计数的控制位，CIDL = 0时，空闲模式下PCA继续工�
              -�。这里0
   37   1                //ECF：PCA技术溢出中断使能位，ECF = 1时，允许寄存器CCON中CF位的中断。这里0
   38   1                //CPS2 CPS1 CPS0 选择CCP时钟源
   39   1                // 0    0     0  系统时钟，SYSclk / 12
-  40   1                // 0    0     1  系统时钟，SYSclk / 2  这里选择此模式
+  40   1                // 0    0     1  系统时钟，SYSclk / 2  
   41   1                // 0    1     0  定时器0的溢出脉冲，T0可工作在1T模式下，因此可以达到1个时钟
              -周期就溢出，从而达到最高频率SYSclk，通过改变T0的溢出率，可以实现PWM的频率调整
   42   1                // 0    1     1  ECI脚的外部时钟
   43   1                // 1    0     0  系统时钟，SYSclk
-  44   1                // 1    0     1  系统时钟，SYSclk / 4
+  44   1                // 1    0     1  系统时钟，SYSclk / 4 这里选择此模式
   45   1                // 1    1     0  系统时钟，SYSclk / 6
   46   1                // 1    1     1  系统时钟，SYSclk / 8
   47   1      
-  48   1        PCA_PWM0  = 0x00;   //8位，频率 = 18432000/2/256 = 36000
-  49   1        CCAP0H = CCAP0L = 0xB3;   //占空比 = (0xFF - 0xB3) / 0xFF = (255 - 179)/255 = 29.8%
+  48   1        PCA_PWM0  = 0x40;   //7位，频率 = 19456000/4/128 = 38000
+  49   1        CCAP0H = CCAP0L = 0x59;   //占空比 = (0x7F - 0x59) / 0x7F = (127 - 89)/127 = 29.9%
   50   1        CCAPM0 = 0x42;
   51   1      
-C51 COMPILER V9.56.0.0   MAIN                                                              07/16/2017 22:30:01 PAGE 2   
+C51 COMPILER V9.56.0.0   MAIN                                                              07/17/2017 22:43:51 PAGE 2   
 
-  52   1        PCA_PWM1  = 0x40;   //7位，频率 = 18432000/2/128 = 72000
-  53   1        CCAP1H = CCAP1L = 0x20;   //占空比 = (0x7F - 0x20) / 0xFF = (127 - 32)/127 = 74.8%
-  54   1        CCAPM1 = 0x42;
+  52   1        // PCA_PWM0 = 0x00;   //8位，频率 = 19456000/2/256 = 38000
+  53   1        // CCAP0H = CCAP0L = 0xB3;    //占空比 = (0xFF - 0xB3) / 0xFF = (255 - 179)/255 = 29.8%
+  54   1        // CCAPM0 = 0x42;
   55   1      
-  56   1        PCA_PWM2  = 0x80;   //6位，频率 = 18432000/2/64  = 114000
-  57   1        CCAP2H = CCAP2L = 0x20;   //占空比 = (0x3F - 0x20) / 0x3F = (63 - 32)/63 = 49.2%
-  58   1        CCAPM2 = 0x42;
+  56   1        // PCA_PWM1 = 0x40;   //7位，频率 = 19456000/2/128 = 76000
+  57   1        // CCAP1H = CCAP1L = 0x20;    //占空比 = (0x7F - 0x20) / 0xFF = (127 - 32)/127 = 74.8%
+  58   1        // CCAPM1 = 0x42;
   59   1      
-  60   1        CR = 1;           //PCA定时器开始工作
-  61   1      
-  62   1        while(1){
-  63   2      
-  64   2        }
-  65   1      }
+  60   1        // PCA_PWM2 = 0x80;   //6位，频率 = 19456000/2/64  = 152000
+  61   1        // CCAP2H = CCAP2L = 0x20;    //占空比 = (0x3F - 0x20) / 0x3F = (63 - 32)/63 = 49.2%
+  62   1        // CCAPM2 = 0x42;
+  63   1      
+  64   1        CR = 1;           //PCA定时器开始工作
+  65   1      
+  66   1        while(1){
+  67   2      
+  68   2        }
+  69   1      }
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =     55    ----
+   CODE SIZE        =     32    ----
    CONSTANT SIZE    =   ----    ----
    XDATA SIZE       =   ----    ----
    PDATA SIZE       =   ----    ----
