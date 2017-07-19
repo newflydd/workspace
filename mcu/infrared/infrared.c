@@ -196,7 +196,7 @@ void InitUART(){
 	TR1 = 1;			//TCON中的TR1，定时器1开始计时
 	ES  = 1;			//串口中断打开
 
-	IP = 0x10;
+	IP = 0x10;			//中断优先级设置
 }
 
 void UartInterrupt() interrupt 4{
