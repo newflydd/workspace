@@ -115,8 +115,8 @@ void EXINT1_ISR() interrupt 2{
 				while(uintBuffer--);
 
 				for(ucharBuffer = 0; ucharBuffer < bufferLength; ucharBuffer++){
-					SBUF = buffer[ucharBuffer];
 					sending = 1;
+					SBUF = buffer[ucharBuffer];					
 					while(sending);		/* 发送每个字节后都等UART中断中将sending复位，防止错乱 */
 				}			
 

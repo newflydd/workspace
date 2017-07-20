@@ -38,8 +38,9 @@ u8 idata buffer[128];				/* 红外接收数据区，最大长度128字节，完�
 u8 bufferLength = 0;				/* 红外接收数据区长度 */
 sbit IR_INPUT = P3^2;				/* 使用外部中断INT0接收红外信号 */
 
-u8  u8temp;
+u8  u8temp,i,j;
 u16 u16temp;
+volatile u8 sending;
 
 int main(){
 	EA = 1;							/* 总中断使能 */
@@ -101,7 +102,8 @@ void T0Init(void){
 
 /* 外部中断IT0初始化 */
 void IT0Init(){
-	IT0 = 1;						/* IT:外部中断方式选择，0:低电平触发，1:下降沿触发 */
+	P32 = 1;
+	IT0 = 1;						/* IT:外部中断方式选择，0:上升沿下降沿都触发，1:下降沿触发 */
 	EX0 = 1;						/* EX:外部中断使能，1:使能，0:失能 */
 }
 
@@ -171,11 +173,24 @@ void SendInfraredSignal(){
 
 u16 GetLowTime(){
 	TH0 = 0;
-	TL0 = 0;				/* 计数器0的高低4位，初始设为0 */
+	TL0 = 0;				/* 计数器0的高低8位，初始设为0 */
 
 	TR0 = 1;				/* 计数器0计时使能 */
 	while(!IR_INPUT){
-		if(TH0 > 0x40)		/* 如果高4位大于某一阈值，表示异常 */
+		if(TH0 > 0x50)		/* 如果高8位大于某一阈值，表示异常 */
+			break;
+	}
+	TR0 = 0;				/* 计数器失能 */
+	return TH0 * 256 + TL0;	/* 高4位*256 + 低4位 = 计时开始后跑过的时间 */
+}
+
+u16 GetHighTime(){
+	TH0 = 0;
+	TL0 = 0;				/* 计数器的高低8位，初始设为0 */
+
+	TR0 = 1;				/* 计数器计时使能 */
+	while(IR_INPUT){
+		if(TH0 > 0x50)		/* 如果高8位大于某一阈值，表示异常 */
 			break;
 	}
 	TR0 = 0;				/* 计数器失能 */
@@ -192,10 +207,64 @@ u16 GetLowTime(){
  * interrupt 4 : 串口中断
  */
 void INT0_Routine() interrupt 0{
+	SBUF = 'A';
 	u16temp = GetLowTime();
 
 	if(u16temp < 9333 || u16temp > 17333){				/* 判断是否在9ms以内 */
-		IE1 = 0;
+		bufferLength = 0;
+		IE0 = 0;										/* 软件释放IE0, 允许外部中断0再次进入 */
 		return;
+	}
+
+	u16temp = GetHighTime();
+	if(u16temp < 4666 || u16temp > 8666){				/* 判断是否在4.5ms以内 */
+		bufferLength = 0;
+		IE0 = 0;
+		return;	
+	}
+
+	while(1){
+		for(j = 0; j < 8; j++){
+			u16temp = GetLowTime();
+			if(u16temp < 581 || u16temp > 1079){				/* 判断是否是560us */
+				bufferLength = 0;
+				IE0 = 0;
+				return;
+			}
+			u16temp = GetHighTime();
+			if(u16temp > 581 && u16temp < 1079){				/* 接收到了0 */
+				buffer[bufferLength] = buffer[bufferLength] << 1;
+			}else if(u16temp > 1752 && u16temp < 3255){			/* 接收到了1 */
+				buffer[bufferLength] = buffer[bufferLength] << 1;
+				buffer[bufferLength] |= 0x01;
+			}else if(u16temp >= 3255){							/* >=3255时表示结束位，无信号了 */
+				IE0 = 0;
+				u16temp = 5000;								/* 延时 */
+				while(u16temp--);
+
+				for(i = 0; i < bufferLength; i++){
+					sending = 1;
+					SBUF = buffer[i];					
+					while(sending);		/* 发送每个字节后都等UART中断中将sending复位，防止错乱 */
+				}			
+
+				bufferLength = 0;
+				return;
+			}else{												/* <=581,数据异常，重置返回 */
+				IE0 = 0;
+				bufferLength = 0;
+				return;
+			}
+		}
+
+		bufferLength++;
+	}
+}
+
+void UART_Routine() interrupt 4{
+	if(TI){				//本次中断是发送中断
+		TI = 0;			//发送完了清零
+		REN = 1;		//发送完了再接受
+		sending = 0;	//清空发射标志
 	}
 }
