@@ -24,14 +24,15 @@ void T0Init(void);					/* 计时器0初始化 */
 void IT0Init();						/* 外部中断IT0初始化 */
 
 void sendInfraredByte(u8 dat);		/* 按字节发送红外数据 */
-void SendInfraredSignal();			/* 发送红外指令 */
+void SendInfraredSignal(u8*);			/* 发送红外指令 */
 
 void delay(u16 us);					/* 延时函数 */
 
 /* 红外发送功能 */
 sbit  SendDataPin = P0^2;	/* 红外数据发射引脚，与PWM通过74HC08混合形成调制信号 */
 sbit  SendCmdPin  = P0^3;	/* 定义发射按钮微动开关引脚，上拉电阻维持高电平，微动按下有个下降沿触发 */
-u8 sendCmd1[] = {0xC3, 0xE0, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0xA0, 0xF1};
+u8 cmdOpen26[] = {0xC3, 0xE9, 0x00, 0x00, 0x04, 0x02, 0x04, 0x00, 0x00, 0x04, 0x00, 0xA0, 0xFF};
+u8 cmdClose26[]= {0xC3, 0xE9, 0x00, 0x00, 0x04, 0x02, 0x04, 0x00, 0x00, 0x00, 0x00, 0xA0, 0xFB};
 
 /* 红外解调功能 */
 u8 idata buffer[128];				/* 红外接收数据区，最大长度128字节，完全满足各种红外遥控器指令集 */
@@ -56,7 +57,18 @@ int main(){
 	while(1){
 		for(u8temp = 0; u8temp < 120; u8temp++)
 			delay(13333);
-		SendInfraredSignal();
+		SendInfraredSignal(cmdOpen26);
+		for(u8temp = 0; u8temp < 120; u8temp++)
+			delay(13333);
+		for(u8temp = 0; u8temp < 120; u8temp++)
+			delay(13333);
+		for(u8temp = 0; u8temp < 120; u8temp++)
+			delay(13333);
+		SendInfraredSignal(cmdClose26);
+		for(u8temp = 0; u8temp < 120; u8temp++)
+			delay(13333);
+		for(u8temp = 0; u8temp < 120; u8temp++)
+			delay(13333);
 	}
 }
 
@@ -89,6 +101,8 @@ void Uart1Init(void)		//9600bps@19.456MHz
 	TH1  = 0xFE;		//设定定时初值
 	ET1  = 0;			//禁止定时器1中断
 	TR1  = 1;			//启动定时器1
+	ES   = 1;			//打开串口中断
+	IP   = 0x10;		//中断优先级设置，串口中断优先，可嵌套进入外部中断
 }
 
 /* 计时器0初始化 */
@@ -147,8 +161,8 @@ void sendInfraredByte(uchar dat){
 }
 
 /* 发射红外信号 */
-void SendInfraredSignal(){
-	uchar pos;
+void SendInfraredSignal(u8* sendCmd){
+	EA = 0;		/* 发送红外信号时禁止中断 */
 
 	/* 9ms高电平 */
 	SendDataPin = 1;
@@ -161,14 +175,15 @@ void SendInfraredSignal(){
 	/**
 	 * 按照数组中的数据依次向外发射
 	 */
-	for(pos = 0; pos < 13; pos++){
-		sendInfraredByte(sendCmd1[pos]);
+	for(i = 0; i < 13; i++){
+		sendInfraredByte(sendCmd[i]);
 	}
 
 	SendDataPin = 1;
 	delay(830);
 	SendDataPin = 0;
 
+	EA = 1;		/* 打开中断 */
 }
 
 u16 GetLowTime(){
@@ -207,7 +222,6 @@ u16 GetHighTime(){
  * interrupt 4 : 串口中断
  */
 void INT0_Routine() interrupt 0{
-	SBUF = 'A';
 	u16temp = GetLowTime();
 
 	if(u16temp < 9333 || u16temp > 17333){				/* 判断是否在9ms以内 */
