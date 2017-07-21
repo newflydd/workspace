@@ -1,26 +1,13 @@
 #ifndef _DS18B20_
 #define _DS18B20_
 
-#include <reg52.h>
-#include <intrins.h>
-
-#ifndef uchar
-#define uchar unsigned char
-#endif
-
-#ifndef uint 
-#define uint unsigned int
-#endif
+#include <STC15F2K.h>
+#include "tools.h"
 
 sbit DS18B20_DQ = P0^5;
 
-void  delayX10us(uchar);
-uchar ds18b20Init();
-void  ds18b20WriteByte(uchar dat);
-uchar ds18b20ReadByte();
-uchar ds18b20Start();
-uchar ds18b20ReadTemperature();
-int   ds18b20GetTemperature();
-float ds18b20GetTemperatureFromInt(int);
+u8   ds18b20Init();
+int  Ds18b20GetTemperature();
+int  Ds18b20GetTemperatureFromInt(int);
 
 #endif

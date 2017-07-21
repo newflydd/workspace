@@ -1,43 +1,39 @@
 #include "ds18b20.h"
 
-/* 软件延时函数，延时时间(t*10)us */
-void delayX10us(uchar t)
-{
-    do {
-        _nop_();
-        _nop_();
-        _nop_();
-        _nop_();
-        _nop_();
-        _nop_();
-        _nop_();
-        _nop_();
-    } while (--t);
-}
+void ds18b20WriteByte(u8 dat);
+u8   ds18b20ReadByte();
+u8   ds18b20Start();
+u8   ds18b20ReadTemperature();
 
 /**
  *  初始化DS18B20
  *  0:成功
  *  1:失败
  */
-uchar ds18b20Init(){
-    uint dt = 0;
-    
+u8 ds18b20Init(){
+    u16 dt = 0;
     EA = 0;
     
     DS18B20_DQ = 1;
-    delayX10us(1);
-    DS18B20_DQ = 0;             //拉低
-    delayX10us(50);             //延时>480us 540us
-    DS18B20_DQ = 1;             //拉高释放
-    //delay(20);                //延时15-60us
-    while(DS18B20_DQ){           //等待总线被18B20拉低响应
+    Delay(15);
+    DS18B20_DQ = 0;             //拉低500us
+    Delay(740);
+    DS18B20_DQ = 1;                        //拉高释放
+    while(DS18B20_DQ || dt < 50){          //等待总线被18B20拉低60-240us响应
         dt++;
-        if(dt>5000){
-            return 1;           //如果5ms内没有拉低的响应，则返回失败
+        if(dt > 32767){
+            EA = 1;
+            return 1;                      //如果5ms内没有拉低的响应，则返回失败
         }
     }
-    DS18B20_DQ = 1;
+    dt = 0;
+    while(!DS18B20_DQ){                    //等待18B20复位
+        dt++;
+        if(dt > 32767){
+            EA = 1;
+            return 1;
+        }
+    }
 
     EA = 1;
     return 0;
@@ -49,19 +45,18 @@ uchar ds18b20Init(){
  * @return     []
  */
 void  ds18b20WriteByte(uchar dat){
-    unsigned char mask;
+    u8 mask;
     
     EA = 0;
     for(mask=0x01; mask!= 0; mask<<=1)
     {
         DS18B20_DQ = 0;
-        _nop_();
-        _nop_();
+        Delay(1);
         if((mask&dat) == 0)
             DS18B20_DQ = 0;
         else
             DS18B20_DQ = 1;
-        delayX10us(6);
+        Delay(90);
         DS18B20_DQ = 1;
     }
 
@@ -73,24 +68,22 @@ void  ds18b20WriteByte(uchar dat){
  * @return [读取的字节]
  */
 uchar ds18b20ReadByte(){
-    unsigned char dat;
-    unsigned char mask;
+    u8 dat;
+    u8 mask;
 
     EA = 0;
 
     for(mask=0x01; mask!=0; mask<<=1)
     {
         DS18B20_DQ = 0;
-        _nop_();
-        _nop_();
+        Delay(2);
         DS18B20_DQ = 1;
-        _nop_();
-        _nop_();
+        Delay(2);
         if(!DS18B20_DQ)
             dat &= ~mask;
         else
             dat |= mask;
-        delayX10us(6);
+        Delay(90);
     }
 
     EA = 1;
@@ -115,7 +108,7 @@ uchar  ds18b20Start(){
 uchar ds18b20ReadTemperature(){
     if(ds18b20Init())
         return 1;
-    delayX10us(15);  //延时150us
+    Delay(90);  //延时150us
     ds18b20WriteByte(0xCC);
     ds18b20WriteByte(0xBE);
     return 0;   
@@ -125,9 +118,9 @@ uchar ds18b20ReadTemperature(){
  * public 公开函数，读取DS28B02整型温度
  * @return [整型变量，每个间隔代表0.0625摄氏度]
  */
-int ds18b20GetTemperature(){
+int Ds18b20GetTemperature(){
     int temp;
-    uchar tempH,tempL;  //高低字节
+    u8 tempH,tempL;  //高低字节
     if(ds18b20Start())
         return -55;
 
@@ -155,16 +148,15 @@ int ds18b20GetTemperature(){
  * @param  int [description]
  * @return     [description]
  */
-float ds18b20GetTemperatureFromInt(int temprInt){
-    float result;
+int Ds18b20GetTemperatureFromInt(int temprInt){
+    int result;
     if(temprInt < 0){
         //读取的值是实际温度的补码
         result = temprInt - 1;
         result = ~temprInt;
-        result = 0.0 - (result * 0.0625);
-        result = temprInt * 0.0625;
+        result = 0 - (result * 625);
     }else{
-        result = temprInt * 0.0625;
+        result = temprInt * 625;
     }
     
     return result;

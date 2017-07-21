@@ -13,6 +13,8 @@
  * 通过UART向上位机发送接收的红外数据
  */
 #include <STC15F2K.h>
+#include "ds18b20.h"
+#include "tools.h"
 
 #define FOSC 19456000L
 #define CCP_S0	0x10 	//P_SW1.4
@@ -24,9 +26,7 @@ void T0Init(void);					/* 计时器0初始化 */
 void IT0Init();						/* 外部中断IT0初始化 */
 
 void sendInfraredByte(u8 dat);		/* 按字节发送红外数据 */
-void SendInfraredSignal(u8*);			/* 发送红外指令 */
-
-void delay(u16 us);					/* 延时函数 */
+void SendInfraredSignal(u8*);		/* 发送红外指令 */
 
 /* 红外发送功能 */
 sbit  SendDataPin = P0^2;	/* 红外数据发射引脚，与PWM通过74HC08混合形成调制信号 */
@@ -44,6 +44,9 @@ u16 u16temp;
 volatile u8 sending;
 
 int main(){
+	int temperatureInt;
+	int temperature;
+
 	EA = 1;							/* 总中断使能 */
 
 	PWM0Init();						/* PWM0初始化，主频19.456M，分频为38KHz */
@@ -54,21 +57,43 @@ int main(){
 	IR_INPUT	= 1;				/* 外部中断置高电平  */
 	SendCmdPin 	= 1;				/* 使SendCmdPin可读 */
 
+	DS18B20_DQ = 1;					/* 18b20 数据引脚复位为高电平 */
+
+	for(u8temp = 0; u8temp < 120; u8temp++)	
+		Delay(65535);
+
 	while(1){
+		DS18B20_DQ = 1;					/* 18b20 数据引脚复位为高电平 */
+
+		for(u8temp = 0; u8temp < 120; u8temp++)	
+			Delay(65535);
+		//temperatureInt = Ds18b20GetTemperature();
+		//temperature    = Ds18b20GetTemperatureFromInt(temperatureInt);
+		if(ds18b20Init()){
+			sending = 1;
+			SBUF = 0x02;
+			while(sending);
+
+			sending = 1;
+			SBUF = 0x02;
+			while(sending);
+		}else{
+			sending = 1;
+			SBUF = 0x00;
+			while(sending);
+		}
+
 		for(u8temp = 0; u8temp < 120; u8temp++)
-			delay(13333);
-		SendInfraredSignal(cmdOpen26);
+			Delay(13333);
+
 		for(u8temp = 0; u8temp < 120; u8temp++)
-			delay(13333);
+			Delay(13333);
 		for(u8temp = 0; u8temp < 120; u8temp++)
-			delay(13333);
+			Delay(13333);
 		for(u8temp = 0; u8temp < 120; u8temp++)
-			delay(13333);
+			Delay(13333);
+
 		SendInfraredSignal(cmdClose26);
-		for(u8temp = 0; u8temp < 120; u8temp++)
-			delay(13333);
-		for(u8temp = 0; u8temp < 120; u8temp++)
-			delay(13333);
 	}
 }
 
@@ -122,18 +147,6 @@ void IT0Init(){
 }
 
 /**
- * 微秒级别延时
- * 			67.5us = 100
- * 9ms    = 9000us = 13333
- * 4.5ms  = 4500us = 6667
- * 			560us  = 830
- *    		1690us = 2504
- */
-void delay(u16 us){
-	while(us)us--;
-}
-
-/**
  * 红外发射一个字节，从高位向低位发射
  * 0： 560us高电平，560us低电平
  * 1： 560us高电平，1690us低电平
@@ -145,16 +158,16 @@ void sendInfraredByte(uchar dat){
 		if((dat & (0x80 >> pos2)) == 0x00){
 			/* 发射0 */
 			SendDataPin = 1;
-			delay(830);
+			Delay(830);
 			SendDataPin = 0;
-			delay(830);
+			Delay(830);
 			SendDataPin = 1;
 		}else{
 			/* 发射1 */
 			SendDataPin = 1;
-			delay(830);
+			Delay(830);
 			SendDataPin = 0;
-			delay(2504);
+			Delay(2504);
 			SendDataPin = 1;
 		}
 	}
@@ -166,11 +179,11 @@ void SendInfraredSignal(u8* sendCmd){
 
 	/* 9ms高电平 */
 	SendDataPin = 1;
-	delay(13333);
+	Delay(13333);
 
 	/* 4.5ms低电平 */
 	SendDataPin = 0;
-	delay(6667);
+	Delay(6667);
 
 	/**
 	 * 按照数组中的数据依次向外发射
@@ -180,7 +193,7 @@ void SendInfraredSignal(u8* sendCmd){
 	}
 
 	SendDataPin = 1;
-	delay(830);
+	Delay(830);
 	SendDataPin = 0;
 
 	EA = 1;		/* 打开中断 */
