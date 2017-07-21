@@ -30,7 +30,11 @@ void SendInfraredSignal(u8*);		/* 发送红外指令 */
 
 /* 红外发送功能 */
 sbit  SendDataPin = P0^2;	/* 红外数据发射引脚，与PWM通过74HC08混合形成调制信号 */
-sbit  SendCmdPin  = P0^3;	/* 定义发射按钮微动开关引脚，上拉电阻维持高电平，微动按下有个下降沿触发 */
+
+sbit  LedGreen = P0^3;
+sbit  LedRed   = P1^2;
+sbit  LedYellow= P1^0;
+
 u8 cmdOpen26[] = {0xC3, 0xE9, 0x00, 0x00, 0x04, 0x02, 0x04, 0x00, 0x00, 0x04, 0x00, 0xA0, 0xFF};
 u8 cmdClose26[]= {0xC3, 0xE9, 0x00, 0x00, 0x04, 0x02, 0x04, 0x00, 0x00, 0x00, 0x00, 0xA0, 0xFB};
 
@@ -39,13 +43,13 @@ u8 idata buffer[128];				/* 红外接收数据区，最大长度128字节，完�
 u8 bufferLength = 0;				/* 红外接收数据区长度 */
 sbit IR_INPUT = P3^2;				/* 使用外部中断INT0接收红外信号 */
 
-u8  u8temp,i,j;
+u8  u8temp,u8temp2,i,j;
 u16 u16temp;
 volatile u8 sending;
 
 int main(){
 	int temperatureInt;
-	int temperature;
+	float temperature;
 
 	EA = 1;							/* 总中断使能 */
 
@@ -55,9 +59,14 @@ int main(){
 	IT0Init();						/* 外部中断IT0初始化 */
 	
 	IR_INPUT	= 1;				/* 外部中断置高电平  */
-	SendCmdPin 	= 1;				/* 使SendCmdPin可读 */
 
 	DS18B20_DQ = 1;					/* 18b20 数据引脚复位为高电平 */
+
+	SendDataPin = 0;
+
+	LedYellow = 0;
+	LedRed    = 0;
+	LedGreen  = 0;
 
 	for(u8temp = 0; u8temp < 120; u8temp++)	
 		Delay(65535);
@@ -65,35 +74,43 @@ int main(){
 	while(1){
 		DS18B20_DQ = 1;					/* 18b20 数据引脚复位为高电平 */
 
-		for(u8temp = 0; u8temp < 120; u8temp++)	
-			Delay(65535);
-		//temperatureInt = Ds18b20GetTemperature();
-		//temperature    = Ds18b20GetTemperatureFromInt(temperatureInt);
-		if(ds18b20Init()){
+		temperatureInt = Ds18b20GetTemperature();
+		temperature    = Ds18b20GetTemperatureFromInt(temperatureInt);
+		if(temperature >= 30.0){
+			//温度大于等30度，打开空调
 			sending = 1;
-			SBUF = 0x02;
+			SBUF = 0xAA;
 			while(sending);
-
+			SendInfraredSignal(cmdOpen26);
+			LedGreen = 1;
+			for(u8temp = 0; u8temp < 40; u8temp++)
+				Delay(65535);
+			LedGreen = 0;
+		}else if(temperature <= 28.0){
+			//温度小于等于28度，关闭空调
 			sending = 1;
-			SBUF = 0x02;
+			SBUF = 0xBB;
 			while(sending);
+			SendInfraredSignal(cmdClose26);
+			LedRed = 1;
+			for(u8temp = 0; u8temp < 40; u8temp++)
+				Delay(65535);
+			LedRed = 0;
 		}else{
+			//温度适中
 			sending = 1;
-			SBUF = 0x00;
+			SBUF = 0xCC;
 			while(sending);
+			LedYellow = 1;
+			for(u8temp = 0; u8temp < 40; u8temp++)
+				Delay(65535);
+			LedYellow = 0;
 		}
 
-		for(u8temp = 0; u8temp < 120; u8temp++)
-			Delay(13333);
-
-		for(u8temp = 0; u8temp < 120; u8temp++)
-			Delay(13333);
-		for(u8temp = 0; u8temp < 120; u8temp++)
-			Delay(13333);
-		for(u8temp = 0; u8temp < 120; u8temp++)
-			Delay(13333);
-
-		SendInfraredSignal(cmdClose26);
+		//每5分钟左右采集1次，27*255*65535*0.675/1000/1000 = 304s
+		for(u8temp2 = 0; u8temp2 < 27; u8temp2++)
+			for(u8temp = 0; u8temp < 255; u8temp++)
+				Delay(65535);
 	}
 }
 

@@ -310,5 +310,9 @@ sfr PWMFDCR     =   0xf7;   //xx00,0000 PWM外部异常检测控制寄存器
 #define u16 unsigned int
 #endif
 
+#ifndef u32
+#define u32 unsigned long
+#endif
+
 #endif
 

@@ -148,15 +148,15 @@ int Ds18b20GetTemperature(){
  * @param  int [description]
  * @return     [description]
  */
-int Ds18b20GetTemperatureFromInt(int temprInt){
+float Ds18b20GetTemperatureFromInt(int temprInt){
     int result;
     if(temprInt < 0){
         //读取的值是实际温度的补码
         result = temprInt - 1;
         result = ~temprInt;
-        result = 0 - (result * 625);
+        result = 0.0 - ((float)result * 0.0625);
     }else{
-        result = temprInt * 625;
+        result = (float)temprInt * 0.0625;
     }
     
     return result;
