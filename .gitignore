@@ -18,10 +18,11 @@
 !*.zip
 !*.7z
 !*.rar
+!*.txt
 
 #Keil
 !**/Listings/*.*
+**/Listings/*.lst
 !**/RTE/*.*
 !/Objects
 !*.uvprojx
-!*.lst

@@ -1,0 +1,51 @@
+获取token：https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=wxf35eb6c638780fbf&secret=wxf35eb6c638780fbf007f2f4e18d0c0a42cabf09ca66c74dd
+
+m3Z3ayIpSNCDB67P4Hrb3WiijFndYSjRtwyYl1xgIcRn8m2SoDyaaKO_X_BNXYuUQ6lRiekCmF12zt2SyAbsns3Bj-j_NGYqUcHCCX0snm4SZAjAFAJQR
+
+获取IP列表GET：https://api.weixin.qq.com/cgi-bin/getcallbackip?access_token=m3Z3ayIpSNCDB67P4Hrb3WiijFndYSjRtwyYl1xgIcRn8m2SoDyaaKO_X_BNXYuUQ6lRiekCmF12zt2SyAbsns3Bj-j_NGYqUcHCCX0snm4SZAjAFAJQR
+
+自定义菜单POST：https://api.weixin.qq.com/cgi-bin/menu/create?access_token=m3Z3ayIpSNCDB67P4Hrb3WiijFndYSjRtwyYl1xgIcRn8m2SoDyaaKO_X_BNXYuUQ6lRiekCmF12zt2SyAbsns3Bj-j_NGYqUcHCCX0snm4SZAjAFAJQR
+ {
+     "button":[
+     {	
+          "name":"企业管理",
+          "sub_button":[
+			{	
+               "type":"view",
+               "name":"账号绑定",
+               "url":"https://www.hexcode.cn/"
+            },
+			{	
+               "type":"view",
+               "name":"库存查询",
+               "url":"https://www.hexcode.cn/"
+            },
+			{	
+               "type":"view",
+               "name":"仓库盘点",
+               "url":"https://www.hexcode.cn/"
+            },
+			{	
+               "type":"scancode_push",
+               "name":"扫描入库",
+               "key": "ID_SCANCODE"
+            }			
+		  ]
+      },
+      {
+           "name":"客户服务",
+           "sub_button":[
+           {	
+               "type":"view",
+               "name":"账号绑定",
+               "url":"https://www.hexcode.cn/"
+            },
+			{	
+               "type":"view",
+               "name":"面板解码",
+               "url":"https://www.hexcode.cn/"
+            }
+       }]
+ }
+ 
+ 获取自定义菜单的JSON结构，https://api.weixin.qq.com/cgi-bin/menu/get?access_token=ACCESS_TOKEN
