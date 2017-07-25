@@ -26,3 +26,6 @@
 !**/RTE/*.*
 !/Objects
 !*.uvprojx
+
+#Golang
+!Go/**

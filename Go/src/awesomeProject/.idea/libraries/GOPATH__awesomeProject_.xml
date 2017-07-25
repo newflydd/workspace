@@ -1,0 +1,29 @@
+<component name="libraryTable">
+  <library name="GOPATH &lt;awesomeProject&gt;">
+    <CLASSES>
+      <root url="file://$PROJECT_DIR$/../martini" />
+      <root url="file://$PROJECT_DIR$/../sqlserver" />
+      <root url="file://$PROJECT_DIR$/../github.com" />
+      <root url="file://$PROJECT_DIR$/../golang.org" />
+      <root url="file://$PROJECT_DIR$/../stringutil" />
+      <root url="file://$PROJECT_DIR$/../http" />
+      <root url="file://$PROJECT_DIR$/../mssql-mysql" />
+      <root url="file://$PROJECT_DIR$/../mysql" />
+      <root url="file://$PROJECT_DIR$/../demo" />
+    </CLASSES>
+    <SOURCES>
+      <root url="file://$PROJECT_DIR$/../martini" />
+      <root url="file://$PROJECT_DIR$/../sqlserver" />
+      <root url="file://$PROJECT_DIR$/../github.com" />
+      <root url="file://$PROJECT_DIR$/../golang.org" />
+      <root url="file://$PROJECT_DIR$/../stringutil" />
+      <root url="file://$PROJECT_DIR$/../http" />
+      <root url="file://$PROJECT_DIR$/../mssql-mysql" />
+      <root url="file://$PROJECT_DIR$/../mysql" />
+      <root url="file://$PROJECT_DIR$/../demo" />
+    </SOURCES>
+    <excluded>
+      <root url="file://$PROJECT_DIR$" />
+    </excluded>
+  </library>
+</component>
