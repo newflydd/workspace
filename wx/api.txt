@@ -52,7 +52,7 @@ pz6MRh23xvwltLvDrdrndbD8j1_sI7QW9-7ipEI_oqJtUAPJaeVOL_fqVEslIwimeuv75K6zMOfcv-gF
  
  gh_4392403f3118 osyhI0aWIcux2OAusL5YK48lMGTM 你好
  
-引到用户进入以下地址，可使回调页面具备获取微信用户信息的能力:
+引导用户进入以下地址，可使回调页面具备获取微信用户信息的能力:
 https://open.weixin.qq.com/connect/oauth2/authorize?appid=APPID&redirect_uri=REDIRECT_URI&response_type=code&scope=SCOPE&state=STATE#wechat_redirect 
 
 https://open.weixin.qq.com/connect/oauth2/authorize?appid=wxf35eb6c638780fbf&redirect_uri=http%3A%2F%2Fwww.codingcrafts.com%2Fabc.html&response_type=code&scope=snsapi_base&state=0#wechat_redirect 
