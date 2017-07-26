@@ -18,7 +18,7 @@ pz6MRh23xvwltLvDrdrndbD8j1_sI7QW9-7ipEI_oqJtUAPJaeVOL_fqVEslIwimeuv75K6zMOfcv-gF
 			{	
                "type":"view",
                "name":"库存查询",
-				"url":"https://open.weixin.qq.com/connect/oauth2/authorize?appid=wxf35eb6c638780fbf&redirect_uri=http%3A%2F%2Fwww.codingcrafts.com%2Fabc.html&response_type=code&scope=snsapi_base&state=0#wechat_redirect"
+				"url":"https://open.weixin.qq.com/connect/oauth2/authorize?appid=wxf35eb6c638780fbf&redirect_uri=http%3A%2F%2Fwww.codingcrafts.com%2Fabc.html&response_type=code&scope=snsapi_userinfo&state=0#wechat_redirect"
             },
 			{	
                "type":"view",
@@ -55,4 +55,14 @@ pz6MRh23xvwltLvDrdrndbD8j1_sI7QW9-7ipEI_oqJtUAPJaeVOL_fqVEslIwimeuv75K6zMOfcv-gF
 引导用户进入以下地址，可使回调页面具备获取微信用户信息的能力:
 https://open.weixin.qq.com/connect/oauth2/authorize?appid=APPID&redirect_uri=REDIRECT_URI&response_type=code&scope=SCOPE&state=STATE#wechat_redirect 
 
-https://open.weixin.qq.com/connect/oauth2/authorize?appid=wxf35eb6c638780fbf&redirect_uri=http%3A%2F%2Fwww.codingcrafts.com%2Fabc.html&response_type=code&scope=snsapi_base&state=0#wechat_redirect 
+https://open.weixin.qq.com/connect/oauth2/authorize?appid=wxf35eb6c638780fbf&redirect_uri=http%3A%2F%2Fwww.codingcrafts.com%2Fabc.html&response_type=code&scope=snsapi_userinfo&state=0#wechat_redirect 
+
+微信重定向回调页面的同时，注入code，通过code可换取access_token和openid：
+https://api.weixin.qq.com/sns/oauth2/access_token?appid=APPID&secret=SECRET&code=CODE&grant_type=authorization_code 
+
+通过access_token和openid，进一步调用API获取用户数据：
+https://api.weixin.qq.com/sns/userinfo?access_token=ACCESS_TOKEN&openid=OPENID&lang=zh_CN 
+
+
+
+

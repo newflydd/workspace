@@ -1,50 +1,39 @@
 package main
 
 import (
-	"encoding/xml"
 	"fmt"
 	"github.com/go-martini/martini"
-	"io/ioutil"
-	"models"
-	"net/http"
+	"github.com/martini-contrib/render"
+	"html/template"
 	"time"
+)
+
+var (
+	WxAppID    string = "wxf35eb6c638780fbf"
+	WxSecret   string = "007f2f4e18d0c0a42cabf09ca66c74dd"
+	WxAppTitle string = "江苏赛洋"
+
+	CommonMap map[string]interface{} = map[string]interface{}{
+		"title": WxAppTitle,
+	}
 )
 
 func main() {
 	m := martini.Classic()
 
-	/* 微信接入认证，一次性 */
-	m.Get("/", func(req *http.Request) string {
-		req.ParseForm()
-		if req.Form["echostr"] != nil {
-			return req.Form["echostr"][0]
-		} else {
-			return ""
-		}
-	})
+	/* 使用render中间件，渲染模板 */
+	m.Use(render.Renderer(render.Options{
+		Funcs: []template.FuncMap{
+			{
+				"title": func(args ...interface{}) string {
+					t1 := time.Unix(args[0].(int64), 0)
+					return t1.Format(time.Stamp)
+				},
+			},
+		},
+	}))
 
-	m.Post("/", func(req *http.Request) string {
-		bodyBytes, err := ioutil.ReadAll(req.Body)
-		checkErr(err)
-
-		var receiveEvent = new(models.WxEvent)
-
-		err = xml.Unmarshal(bodyBytes, receiveEvent)
-		checkErr(err)
-
-		fmt.Println(receiveEvent.ToUserName, receiveEvent.FromUserName, receiveEvent.Content)
-
-		var responseEvent = models.WxEvent{}
-
-		responseEvent.FromUserName = receiveEvent.ToUserName
-		responseEvent.ToUserName = receiveEvent.FromUserName
-		responseEvent.MsgType = "text"
-		responseEvent.Content = "你好，你的消息我们已记录，请等待处理。"
-		responseEvent.CreateTime = time.Now().Unix()
-
-		repBytes, _ := xml.Marshal(responseEvent)
-		return string(repBytes)
-	})
+	RouteMartini(m)
 
 	m.Run()
 }
