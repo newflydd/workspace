@@ -4,10 +4,9 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
-	"log"
-
 	_ "github.com/denisenkom/go-mssqldb"
 	_ "github.com/go-sql-driver/mysql"
+	"log"
 )
 
 var (
@@ -56,8 +55,15 @@ func main() {
 	checkErr("Open mssql connection failed:", err)
 	defer mysqlConn.Close()
 
-	mysqlStmt, err := mysqlConn.Prepare("INSERT INTO sy_item(FItemID, FNumber, FUnitName, FName, FModel, FQty, FStockName) Values(?,?,?,?,?,?,?)")
+	/* 清空表 */
+	mysqlStmt, err := mysqlConn.Prepare("delete from sy_item")
 	checkErr("mysql prepare failed:", err)
+	_, err = mysqlStmt.Exec()
+
+	/* 迭代插入 */
+	mysqlStmt, err = mysqlConn.Prepare("INSERT INTO sy_item(FItemID, FNumber, FUnitName, FName, FModel, FQty, FStockName) Values(?,?,?,?,?,?,?)")
+	checkErr("mysql prepare failed:", err)
+
 	defer mysqlStmt.Close()
 
 	var FItemID *int
@@ -72,9 +78,14 @@ func main() {
 			FModel = &fmodel
 		}
 
-		_, err := mysqlStmt.Exec(*FItemID, *FNumber, *FUnitName, *FName, *FModel, *FQty, *FStockName)
+		_, err = mysqlStmt.Exec(*FItemID, *FNumber, *FUnitName, *FName, *FModel, *FQty, *FStockName)
 		checkErr("mysql exec failed:", err)
 	}
+
+	/* 跟新刷新时间 */
+	mysqlStmt, err = mysqlConn.Prepare("update sy_system s set s.`value` = date_format(now(),'%Y-%m-%d %H:%i:%s') where s.`key` = 'update_time'")
+	checkErr("mysql prepare failed:", err)
+	_, err = mysqlStmt.Exec()
 }
 
 func checkErr(msg string, err error) {

@@ -86,6 +86,14 @@ func RouteMartini(m *martini.ClassicMartini) {
 		err = json.Unmarshal(body, &wxUserInfo)
 		checkErr(err)
 
+		/* 获取mysql中的数据跟新时间 */
+		resp, err = http.Get("http://localhost:3000/api/getUpdateTime")
+		checkErr(err)
+		body, err = ioutil.ReadAll(resp.Body)
+		checkErr(err)
+		updateTime := string(body)
+		fmt.Println(updateTime)
+
 		defer resp.Body.Close()
 
 		newmap := CommonMap
@@ -93,15 +101,18 @@ func RouteMartini(m *martini.ClassicMartini) {
 		newmap["openid"] = wxATOI.OpenId
 		newmap["nickname"] = wxUserInfo.NickName
 		newmap["headimgurl"] = wxUserInfo.HeadImgUrl
+		newmap["updatetime"] = updateTime
 
 		r.HTML(200, "abc", newmap)
 		newmap["code"] = "bad value"
 		newmap["openid"] = "bad value"
 		newmap["nickname"] = "bad value"
 		newmap["headimgurl"] = "bad value"
+		newmap["updatetime"] = "bad value"
 	})
 
 	m.Group("/api", func(r martini.Router) {
-		r.Post("/getStoreData/:thing_id", ApiGetStoreData)
+		r.Get("/getStoreData", ApiGetStoreData)
+		r.Get("/getUpdateTime", ApiGetUpdateTime)
 	})
 }
