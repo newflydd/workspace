@@ -4,12 +4,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	_ "github.com/go-sql-driver/mysql"
 	"models"
 	"net/http"
 )
 
-func ApiGetStoreData(req *http.Request) string {
+func ApiGetStoreData(req *http.Request, mysqlConn *sql.DB) string {
 	/* 检查参数 */
 	req.ParseForm()
 
@@ -47,12 +46,8 @@ func ApiGetStoreData(req *http.Request) string {
 		}
 	}
 
-	mysqlConn, err := sql.Open("mysql", "newflypig:jy.8215085@tcp(58.222.139.38:3306)/sywx?charset=utf8")
-	checkErr(err)
-	defer mysqlConn.Close()
-
 	//查询数据量
-	fsqlCount := "select count(*) from sy_item where" + fNumberSql + fNameSql + fStockNameSql
+	fsqlCount := "select count(*) from sy_item where FQty <> 0 and" + fNumberSql + fNameSql + fStockNameSql
 
 	rows, err := mysqlConn.Query(fsqlCount)
 	checkErr(err)
@@ -65,7 +60,7 @@ func ApiGetStoreData(req *http.Request) string {
 		return "数据量太大，无法显示，请进一步约束条件再查询。"
 	}
 
-	fsql := "select * from sy_item where" + fNumberSql + fNameSql + fStockNameSql
+	fsql := "select * from sy_item where FQty <> 0 and" + fNumberSql + fNameSql + fStockNameSql
 
 	fmt.Println(fsql)
 
@@ -88,11 +83,7 @@ func ApiGetStoreData(req *http.Request) string {
 	return string(b)
 }
 
-func ApiGetUpdateTime() string {
-	mysqlConn, err := sql.Open("mysql", "newflypig:jy.8215085@tcp(58.222.139.38:3306)/sywx?charset=utf8")
-	checkErr(err)
-	defer mysqlConn.Close()
-
+func ApiGetUpdateTime(mysqlConn *sql.DB) string {
 	//查询数据
 	rows, err := mysqlConn.Query("select s.`value` from sy_system s where s.`key`='update_time'")
 	checkErr(err)

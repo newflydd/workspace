@@ -7,6 +7,7 @@ import (
 	_ "github.com/denisenkom/go-mssqldb"
 	_ "github.com/go-sql-driver/mysql"
 	"log"
+	"models"
 )
 
 var (
@@ -55,6 +56,8 @@ func main() {
 	checkErr("Open mssql connection failed:", err)
 	defer mysqlConn.Close()
 
+	mysqlConn.SetMaxOpenConns(4500)
+
 	/* 清空表 */
 	mysqlStmt, err := mysqlConn.Prepare("delete from sy_item")
 	checkErr("mysql prepare failed:", err)
@@ -66,26 +69,39 @@ func main() {
 
 	defer mysqlStmt.Close()
 
-	var FItemID *int
-	var FQty *float32
-	var FNumber, FUnitName, FName, FModel, FStockName *string
+	/* 切片，相当于动态数组 */
+	fitems := []models.K3ItemPoint{}
+
 	for msRows.Next() {
-		err = msRows.Scan(&FItemID, &FNumber, &FUnitName, &FName, &FModel, &FQty, &FStockName)
+		fitem := models.K3ItemPoint{}
+
+		err = msRows.Scan(&fitem.FItemID, &fitem.FNumber, &fitem.FUnitName, &fitem.FName, &fitem.FModel, &fitem.FQty, &fitem.FStockName)
 		checkErr("mssql scan failed:", err)
 
-		if FModel == nil {
-			var fmodel string = ""
-			FModel = &fmodel
+		if fitem.FModel == nil {
+			blankStr := ""
+			fitem.FModel = &blankStr
 		}
 
-		_, err = mysqlStmt.Exec(*FItemID, *FNumber, *FUnitName, *FName, *FModel, *FQty, *FStockName)
-		checkErr("mysql exec failed:", err)
+		fitems = append(fitems, fitem)
+	}
+
+	fmt.Printf("已读取 %d 条记录，准备插入MySQL数据库。", len(fitems))
+
+	/* 遍历切片，开启协程处理数据库插入 */
+	for i := 0; i < len(fitems); i++ {
+		go insertIntoMysql(mysqlStmt, fitems[i])
 	}
 
 	/* 跟新刷新时间 */
 	mysqlStmt, err = mysqlConn.Prepare("update sy_system s set s.`value` = date_format(now(),'%Y-%m-%d %H:%i:%s') where s.`key` = 'update_time'")
 	checkErr("mysql prepare failed:", err)
 	_, err = mysqlStmt.Exec()
+}
+
+func insertIntoMysql(mysqlStmt *sql.Stmt, fitem models.K3ItemPoint) {
+	_, err := mysqlStmt.Exec(*fitem.FItemID, *fitem.FNumber, *fitem.FUnitName, *fitem.FName, *fitem.FModel, *fitem.FQty, *fitem.FStockName)
+	checkErr("mysql exec failed:", err)
 }
 
 func checkErr(msg string, err error) {

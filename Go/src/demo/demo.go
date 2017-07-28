@@ -20,6 +20,8 @@ func sum(a []int) (sum int, length int) {
 }
 
 func main() {
+	defer close()
+
 	flag.Parse()
 	fmt.Printf("hello world\n")
 	fmt.Printf(stringutil.Reverse("中国") + "\n")
@@ -44,4 +46,8 @@ func main() {
 			fmt.Println(command, " ", rand.Intn(10))
 		}
 	}
+}
+
+func close() {
+	fmt.Println("defer test")
 }

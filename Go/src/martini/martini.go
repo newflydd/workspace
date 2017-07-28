@@ -1,8 +1,10 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/go-martini/martini"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/martini-contrib/render"
 	"html/template"
 	"time"
@@ -20,6 +22,18 @@ var (
 
 func main() {
 	m := martini.Classic()
+
+	//创建MySQL连接池
+	mysqlConnPool, err := sql.Open("mysql", "newflypig:jy.8215085@tcp(58.222.139.38:3306)/sywx?charset=utf8")
+	checkErr(err)
+	mysqlConnPool.SetMaxIdleConns(10) /* 设置最大连接数10 */
+	defer mysqlConnPool.Close()
+
+	/**
+	 * martini 调用路由是使用reflect.Invoke 的方式调用的
+	 * 因此注入连接池后，需要用的时候只需要在Handler参数中加入 *sql.DB 类型即可
+	 */
+	m.Map(mysqlConnPool)
 
 	/* 使用render中间件，渲染模板 */
 	m.Use(render.Renderer(render.Options{

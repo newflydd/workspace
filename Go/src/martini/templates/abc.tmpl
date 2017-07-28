@@ -7,6 +7,9 @@
         <!-- 引入 WeUI -->
         <link rel="stylesheet" href="https://res.wx.qq.com/open/libs/weui/1.1.2/weui.min.css"/>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/dna.js/1.2/dna.css"/>
+        <style type="text/css">
+        	.weui-media-box__desc{font-size: 14px}
+        </style>
     </head>
     <body>
 		<div class="header" style="padding: 40px;background-color: #009291;color: #fff;">
@@ -44,9 +47,9 @@
 			        <div class="weui-media-box weui-media-box_text">
 			            <h4 class="weui-media-box__title">~~fname~~</h4>
 						<p class="weui-media-box__desc">~~fnumber~~</p>
-			            <p class="weui-media-box__desc">库存：<span>~~fqty~~</span><span>~~funitname~~</span></p>
+			            <p class="weui-media-box__desc">库存：<b style="color:#000"><span>~~fqty~~</span><span>~~funitname~~</span>&nbsp;|&nbsp;<span>~~fstockname~~</span></b></p>
 						<p class="weui-media-box__desc">
-							型号：<span>~~fmodel~~</span>&nbsp;|&nbsp;<span>~~fstockname~~</span>
+							型号：<span>~~fmodel~~</span>
 						</p>			           
 			        </div>
 			    </div>
