@@ -22,6 +22,8 @@ type WxUserInfo struct {
 	City       string   `json:"city"`
 	Country    string   `json:"country"`
 	HeadImgUrl string   `json:"headimgurl"`
-	privilege  []string `json:"privilege"`
-	unionid    string   `json:"unionid"`
+	Privilege  []string `json:"privilege"`
+	Unionid    string   `json:"unionid"`
+	Code       string
+	Name       string
 }

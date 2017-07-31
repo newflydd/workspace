@@ -15,6 +15,11 @@ var (
 	WxSecret   string = "007f2f4e18d0c0a42cabf09ca66c74dd"
 	WxAppTitle string = "江苏赛洋"
 
+	WxAccessToken        string = "" /* 微信AccessToken */
+	WxAccessTokenGetTime int64  = 0  /* 最近一次获取微信AccessToken的时间戳 */
+	WxJSTicket           string = "" /* 微信JSTicket */
+	WxJSTicketGetTime    int64  = 0  /* 最近一次获得微信JSTicket的时间戳 */
+
 	CommonMap map[string]interface{} = map[string]interface{}{
 		"title": WxAppTitle,
 	}
@@ -39,7 +44,7 @@ func main() {
 	m.Use(render.Renderer(render.Options{
 		Funcs: []template.FuncMap{
 			{
-				"title": func(args ...interface{}) string {
+				"time": func(args ...interface{}) string {
 					t1 := time.Unix(args[0].(int64), 0)
 					return t1.Format(time.Stamp)
 				},

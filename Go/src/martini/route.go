@@ -33,7 +33,7 @@ func RouteMartini(m *martini.ClassicMartini) {
 		err = xml.Unmarshal(bodyBytes, receiveEvent)
 		checkErr(err)
 
-		fmt.Println(receiveEvent.ToUserName, receiveEvent.FromUserName, receiveEvent.Content)
+		fmt.Println(receiveEvent.ToUserName, receiveEvent.FromUserName, receiveEvent.Event, receiveEvent.Content)
 
 		var responseEvent = models.WxEvent{}
 
@@ -53,66 +53,146 @@ func RouteMartini(m *martini.ClassicMartini) {
 	})
 
 	/* 使用render中间件，渲染模板页面，模板路径默认为/templates/ */
-	m.Get("/abc.html", func(req *http.Request, r render.Render) {
-		/* 获取微信传过来的code */
-		req.ParseForm()
-		if req.Form["code"] == nil {
-			r.HTML(200, "error", "没有微信授权信息，请从微信App中访问本应用。")
-			return
-		}
-
-		code := req.Form["code"][0]
-
-		/* 用code换access_token和openid */
-		resp, err := http.Get("https://api.weixin.qq.com/sns/oauth2/access_token?appid=" + WxAppID + "&secret=" + WxSecret + "&code=" + code + "&grant_type=authorization_code")
-		checkErr(err)
-
-		/* 解析微信返回的json，其中有access_token和openid */
-		body, err := ioutil.ReadAll(resp.Body)
-		checkErr(err)
-		wxATOI := models.WxATOI{}
-		err = json.Unmarshal(body, &wxATOI)
-		checkErr(err)
-
-		/* 通过access_token and openid 换取用户信息 */
-		resp, err = http.Get("https://api.weixin.qq.com/sns/userinfo?access_token=" + wxATOI.AccessToken + "&openid=" + wxATOI.OpenId + "&lang=zh_CN")
-		checkErr(err)
-
-		/* 解析微信返回的json，其中有用户数据 */
-		body, err = ioutil.ReadAll(resp.Body)
-		checkErr(err)
-		fmt.Println(string(body))
-		wxUserInfo := models.WxUserInfo{}
-		err = json.Unmarshal(body, &wxUserInfo)
-		checkErr(err)
-
+	m.Get("/abc.html", authorize, checkHasBind, func(r render.Render, wxUserInfo *models.WxUserInfo) {
 		/* 获取mysql中的数据跟新时间 */
-		resp, err = http.Get("http://localhost:3000/api/getUpdateTime")
+		resp, err := http.Get("http://localhost:3000/api/getUpdateTime")
 		checkErr(err)
-		body, err = ioutil.ReadAll(resp.Body)
+		body, err := ioutil.ReadAll(resp.Body)
 		checkErr(err)
 		updateTime := string(body)
 		fmt.Println(updateTime)
 
 		defer resp.Body.Close()
 
+		/* 构造JSTicket签名 */
+		noncestr := GetRandomString(16)
+		jsapi_ticket := getJSTicket()
+		timestamp := time.Now().Unix()
+		url := "http://www.codingcrafts.com/abc.html?code=" + wxUserInfo.Code + "&state=0"
+		signatureStr := fmt.Sprintf("jsapi_ticket=%s&noncestr=%s&timestamp=%d&url=%s", jsapi_ticket, noncestr, timestamp, url)
+		signature := Sha1Encrypt(signatureStr)
+
+		fmt.Println("name=" + wxUserInfo.Name)
+
 		newmap := CommonMap
-		newmap["code"] = req.Form["code"][0] /* 需要注入模板的各种变量 */
-		newmap["openid"] = wxATOI.OpenId
-		newmap["nickname"] = wxUserInfo.NickName
-		newmap["headimgurl"] = wxUserInfo.HeadImgUrl
+		newmap["name"] = wxUserInfo.Name
 		newmap["updatetime"] = updateTime
+		newmap["timestamp"] = timestamp
+		newmap["nonceStr"] = noncestr
+		newmap["signature"] = signature
 
 		r.HTML(200, "abc", newmap)
-		newmap["code"] = "bad value"
-		newmap["openid"] = "bad value"
-		newmap["nickname"] = "bad value"
-		newmap["headimgurl"] = "bad value"
-		newmap["updatetime"] = "bad value"
+	})
+
+	/* 账号绑定页面 */
+	m.Get("/register.html", authorize, checkHasBindToError, func(r render.Render, wxUserInfo *models.WxUserInfo) {
+		newmap := CommonMap
+		newmap["openid"] = wxUserInfo.OpenId
+		newmap["nickname"] = wxUserInfo.NickName
+
+		r.HTML(200, "register", newmap)
 	})
 
 	m.Group("/api", func(r martini.Router) {
-		r.Get("/getStoreData", ApiGetStoreData)
-		r.Get("/getUpdateTime", ApiGetUpdateTime)
+		r.Get("/getStoreData", ApiGetStoreData)   /* 向服务器发送库存查询请求 */
+		r.Get("/getUpdateTime", ApiGetUpdateTime) /* 向服务器请求数据库更新时间 */
+		r.Post("/register", ApiRegister)          /* 向服务器发送账号绑定请求 */
 	})
+}
+
+func authorize(req *http.Request, r render.Render, c martini.Context) {
+	/* 获取微信传过来的code */
+	req.ParseForm()
+	if req.Form["code"] == nil {
+		r.HTML(200, "error", "没有微信授权信息，请从微信App中访问本应用。")
+	}
+
+	/* 用code换access_token和openid */
+	resp, err := http.Get("https://api.weixin.qq.com/sns/oauth2/access_token?appid=" + WxAppID + "&secret=" + WxSecret + "&code=" + req.Form["code"][0] + "&grant_type=authorization_code")
+	checkErr(err)
+
+	/* 解析微信返回的json，其中有access_token和openid */
+	body, err := ioutil.ReadAll(resp.Body)
+	checkErr(err)
+	wxAtoiResp := models.WxAtoiResp{}
+	err = json.Unmarshal(body, &wxAtoiResp)
+	checkErr(err)
+
+	/* 通过access_token and openid 换取用户信息 */
+	resp, err = http.Get("https://api.weixin.qq.com/sns/userinfo?access_token=" + wxAtoiResp.AccessToken + "&openid=" + wxAtoiResp.OpenId + "&lang=zh_CN")
+	checkErr(err)
+
+	/* 解析微信返回的json，其中有用户数据 */
+	body, err = ioutil.ReadAll(resp.Body)
+	checkErr(err)
+	fmt.Println(string(body))
+	wxUserInfo := models.WxUserInfo{}
+	err = json.Unmarshal(body, &wxUserInfo)
+	checkErr(err)
+
+	wxUserInfo.Code = req.Form["code"][0]
+
+	c.Map(&wxUserInfo)
+}
+
+func getAccessToken() string {
+	nowTime := time.Now().Unix()
+	/* 如果距离上次申请AccessToken不足7000秒，则直接返回内存中的AccessToken */
+	if nowTime-WxAccessTokenGetTime < 7000 {
+		return WxAccessToken
+	}
+
+	resp, err := http.Get(`https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=` + WxAppID + `&secret=` + WxSecret)
+	checkErr(err)
+
+	body, err := ioutil.ReadAll(resp.Body)
+	checkErr(err)
+
+	wxAccessTokenResp := models.WxAccessTokenResp{}
+	err = json.Unmarshal(body, &wxAccessTokenResp)
+	if err != nil {
+		fmt.Println("get access_token error.")
+		fmt.Println(err)
+		fmt.Println(string(body))
+		return ""
+	}
+
+	WxAccessToken = wxAccessTokenResp.AccessToken
+	WxAccessTokenGetTime = nowTime
+
+	return WxAccessToken
+}
+
+func getJSTicket() string {
+	nowTime := time.Now().Unix()
+
+	/* 如果距离上次申请JSTicket不足7000秒，则直接返回内存中的AccessToken */
+	if nowTime-WxJSTicketGetTime < 7000 {
+		return WxJSTicket
+	}
+
+	accessToken := getAccessToken()
+
+	if accessToken == "" {
+		return ""
+	}
+
+	resp, err := http.Get(`https://api.weixin.qq.com/cgi-bin/ticket/getticket?access_token=` + accessToken + `&type=jsapi`)
+	checkErr(err)
+
+	body, err := ioutil.ReadAll(resp.Body)
+	checkErr(err)
+
+	wxJSTicketResp := models.WxJSTicketJsonResp{}
+	err = json.Unmarshal(body, &wxJSTicketResp)
+
+	if err != nil || wxJSTicketResp.ErrCode != 0 {
+		fmt.Println("get js_ticket error.")
+		return ""
+	}
+
+	WxJSTicket = wxJSTicketResp.Ticket
+	WxJSTicketGetTime = nowTime
+
+	return WxJSTicket
 }

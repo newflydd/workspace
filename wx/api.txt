@@ -13,7 +13,7 @@ pz6MRh23xvwltLvDrdrndbD8j1_sI7QW9-7ipEI_oqJtUAPJaeVOL_fqVEslIwimeuv75K6zMOfcv-gF
 			{	
                "type":"view",
                "name":"账号绑定",
-               "url":"https://www.hexcode.cn/"
+               "url":"https://open.weixin.qq.com/connect/oauth2/authorize?appid=wxf35eb6c638780fbf&redirect_uri=http%3A%2F%2Fwww.codingcrafts.com%2Fregister.html&response_type=code&scope=snsapi_userinfo&state=0#wechat_redirect"
             },
 			{	
                "type":"view",
@@ -23,10 +23,10 @@ pz6MRh23xvwltLvDrdrndbD8j1_sI7QW9-7ipEI_oqJtUAPJaeVOL_fqVEslIwimeuv75K6zMOfcv-gF
 			{	
                "type":"view",
                "name":"仓库盘点",
-               "url":"https://www.hexcode.cn/"
+               "url":"https://open.weixin.qq.com/connect/oauth2/authorize?appid=wxf35eb6c638780fbf&redirect_uri=http%3A%2F%2Fwww.codingcrafts.com%2Fstockcheck.html&response_type=code&scope=snsapi_userinfo&state=0#wechat_redirect"
             },
 			{	
-               "type":"scancode_push",
+               "type":"scancode_waitmsg",
                "name":"扫描入库",
                "key": "ID_SCANCODE"
             }			
@@ -38,12 +38,12 @@ pz6MRh23xvwltLvDrdrndbD8j1_sI7QW9-7ipEI_oqJtUAPJaeVOL_fqVEslIwimeuv75K6zMOfcv-gF
            {	
                "type":"view",
                "name":"账号绑定",
-               "url":"https://www.hexcode.cn/"
+               "url":"https://open.weixin.qq.com/connect/oauth2/authorize?appid=wxf35eb6c638780fbf&redirect_uri=http%3A%2F%2Fwww.codingcrafts.com%2Fcusregister.html&response_type=code&scope=snsapi_userinfo&state=0#wechat_redirect"
             },
 			{	
                "type":"view",
                "name":"面板解码",
-               "url":"https://www.hexcode.cn/"
+               "url":"https://open.weixin.qq.com/connect/oauth2/authorize?appid=wxf35eb6c638780fbf&redirect_uri=http%3A%2F%2Fwww.codingcrafts.com%2Fcusdecrypt.html&response_type=code&scope=snsapi_userinfo&state=0#wechat_redirect"
             }
        }]
  }
@@ -62,6 +62,16 @@ https://api.weixin.qq.com/sns/oauth2/access_token?appid=APPID&secret=SECRET&code
 
 通过access_token和openid，进一步调用API获取用户数据：
 https://api.weixin.qq.com/sns/userinfo?access_token=ACCESS_TOKEN&openid=OPENID&lang=zh_CN 
+
+微信扫一扫
+调起微信扫一扫接口
+wx.scanQRCode({
+    needResult: 0, // 默认为0，扫描结果由微信处理，1则直接返回扫描结果，
+    scanType: ["qrCode","barCode"], // 可以指定扫二维码还是一维码，默认二者都有
+    success: function (res) {
+    var result = res.resultStr; // 当needResult 为 1 时，扫码返回的结果
+}
+});
 
 
 

@@ -1,2 +1,30 @@
-<!-- templates/hello.tmpl -->
-<h2>错误： {{.}}!</h2>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=0" />
+  <title>出错了</title>
+  <link rel="stylesheet" href="https://res.wx.qq.com/open/libs/weui/1.1.2/weui.min.css" type="text/css" />
+</head>
+<body>
+  <div class="header" style="padding: 40px;background-color: #009291;color: #fff;">
+    <div style="font:800 32px '微软雅黑';border-bottom:2px solid #fff">
+      赛洋机电&nbsp;&nbsp;
+    </div>
+    <div style="display: inline-block;font:italic 26px '楷体';margin-left: 50px">
+      用心为您服务
+    </div>
+  </div>
+
+  <div class="weui-panel">
+    <div class="weui-panel__bd">
+      <div class="weui-media-box weui-media-box_text">
+        <h4 class="weui-media-box__title">出错了:</h4>
+        <p class="weui-media-box__desc">{{.}}</p>
+      </div>
+    </div>
+  </div>
+  <div class="weui-footer">
+    <p class="weui-footer__text" style="margin-top: 20px">Copyright &copy; 2001-2017 saiyang.com.cn</p>
+  </div>
+</body>
+</html>
