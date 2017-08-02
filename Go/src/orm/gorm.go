@@ -27,7 +27,7 @@ func main() {
 		fmt.Println("failed to connect database")
 		fmt.Println(err)
 	}
-	db.LogMode(true)
+	//db.LogMode(true)
 
 	fmt.Println("connect database success!")
 
@@ -53,11 +53,4 @@ func main() {
 	/* select */
 	var syCheckOrder SyCheckOrder
 	db.First(&syCheckOrder)
-
-	if syCheckOrder.StockName == "" {
-		fmt.Println("not loaded")
-	} else {
-		fmt.Println(syCheckOrder.StockName)
-	}
-
 }

@@ -1,10 +1,10 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"github.com/go-martini/martini"
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/mysql"
 	"github.com/martini-contrib/render"
 	"html/template"
 	"time"
@@ -29,9 +29,12 @@ func main() {
 	m := martini.Classic()
 
 	//创建MySQL连接池
-	mysqlConnPool, err := sql.Open("mysql", "newflypig:jy.8215085@tcp(58.222.139.38:3306)/sywx?charset=utf8")
+	mysqlConnPool, err := gorm.Open("mysql", "newflypig:jy.8215085@tcp(58.222.139.38:3306)/sywx?charset=utf8")
 	checkErr(err)
-	mysqlConnPool.SetMaxIdleConns(10) /* 设置最大连接数10 */
+	mysqlConnPool.DB().SetMaxIdleConns(10)
+	mysqlConnPool.DB().SetMaxOpenConns(100) /* 设置最大连接数100 */
+	//mysqlConnPool.LogMode(true)
+	mysqlConnPool.SingularTable(true) /* 全局禁用复数表名 */
 	defer mysqlConnPool.Close()
 
 	/**

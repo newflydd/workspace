@@ -19,6 +19,11 @@ func sum(a []int) (sum int, length int) {
 	return sum, len(a)
 }
 
+type Man struct {
+	id   int
+	name string
+}
+
 func main() {
 	defer close()
 
@@ -34,6 +39,14 @@ func main() {
 	fmt.Printf("%d,%d\n", summary, length)
 
 	fmt.Println(math.Pi)
+
+	man := Man{}
+	fmt.Println("man.id=", man.id)
+	if man.name == "" {
+		fmt.Println("man.name is blank")
+	} else {
+		fmt.Println("man.name is no nil and no blank")
+	}
 
 	reader := bufio.NewReader(os.Stdin)
 	for {

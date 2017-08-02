@@ -7,7 +7,7 @@ import (
 	"github.com/go-martini/martini"
 	"github.com/martini-contrib/render"
 	"io/ioutil"
-	"models"
+	"log"
 	"net/http"
 	"time"
 )
@@ -28,14 +28,14 @@ func RouteMartini(m *martini.ClassicMartini) {
 		bodyBytes, err := ioutil.ReadAll(req.Body)
 		checkErr(err)
 
-		var receiveEvent = new(models.WxEvent)
+		var receiveEvent = new(WxEvent)
 
 		err = xml.Unmarshal(bodyBytes, receiveEvent)
 		checkErr(err)
 
 		fmt.Println(receiveEvent.ToUserName, receiveEvent.FromUserName, receiveEvent.Event, receiveEvent.Content)
 
-		var responseEvent = models.WxEvent{}
+		var responseEvent = WxEvent{}
 
 		responseEvent.FromUserName = receiveEvent.ToUserName
 		responseEvent.ToUserName = receiveEvent.FromUserName
@@ -53,7 +53,7 @@ func RouteMartini(m *martini.ClassicMartini) {
 	})
 
 	/* 使用render中间件，渲染模板页面，模板路径默认为/templates/ */
-	m.Get("/abc.html", authorize, checkHasBind, func(r render.Render, wxUserInfo *models.WxUserInfo) {
+	m.Get("/abc.html", authorize, checkHasBind, func(r render.Render, syUser *SyUser, log *log.Logger) {
 		/* 获取mysql中的数据跟新时间 */
 		resp, err := http.Get("http://localhost:3000/api/getUpdateTime")
 		checkErr(err)
@@ -68,14 +68,14 @@ func RouteMartini(m *martini.ClassicMartini) {
 		noncestr := GetRandomString(16)
 		jsapi_ticket := getJSTicket()
 		timestamp := time.Now().Unix()
-		url := "http://www.codingcrafts.com/abc.html?code=" + wxUserInfo.Code + "&state=0"
+		url := "http://www.codingcrafts.com/abc.html?code=" + syUser.Code + "&state=0"
 		signatureStr := fmt.Sprintf("jsapi_ticket=%s&noncestr=%s&timestamp=%d&url=%s", jsapi_ticket, noncestr, timestamp, url)
 		signature := Sha1Encrypt(signatureStr)
 
-		fmt.Println("name=" + wxUserInfo.Name)
+		log.Println("user:" + syUser.Name + " into search page")
 
 		newmap := CommonMap
-		newmap["name"] = wxUserInfo.Name
+		newmap["name"] = syUser.Name
 		newmap["updatetime"] = updateTime
 		newmap["timestamp"] = timestamp
 		newmap["nonceStr"] = noncestr
@@ -85,10 +85,10 @@ func RouteMartini(m *martini.ClassicMartini) {
 	})
 
 	/* 账号绑定页面 */
-	m.Get("/register.html", authorize, checkHasBindToError, func(r render.Render, wxUserInfo *models.WxUserInfo) {
+	m.Get("/register.html", authorize, checkHasBindToError, func(r render.Render, syUser *SyUser) {
 		newmap := CommonMap
-		newmap["openid"] = wxUserInfo.OpenId
-		newmap["nickname"] = wxUserInfo.NickName
+		newmap["openid"] = syUser.Openid
+		newmap["nickname"] = syUser.NickName
 
 		r.HTML(200, "register", newmap)
 	})
@@ -114,7 +114,7 @@ func authorize(req *http.Request, r render.Render, c martini.Context) {
 	/* 解析微信返回的json，其中有access_token和openid */
 	body, err := ioutil.ReadAll(resp.Body)
 	checkErr(err)
-	wxAtoiResp := models.WxAtoiResp{}
+	wxAtoiResp := WxAtoiResp{}
 	err = json.Unmarshal(body, &wxAtoiResp)
 	checkErr(err)
 
@@ -126,13 +126,13 @@ func authorize(req *http.Request, r render.Render, c martini.Context) {
 	body, err = ioutil.ReadAll(resp.Body)
 	checkErr(err)
 	fmt.Println(string(body))
-	wxUserInfo := models.WxUserInfo{}
-	err = json.Unmarshal(body, &wxUserInfo)
+	syUser := SyUser{}
+	err = json.Unmarshal(body, &syUser)
 	checkErr(err)
 
-	wxUserInfo.Code = req.Form["code"][0]
+	syUser.Code = req.Form["code"][0]
 
-	c.Map(&wxUserInfo)
+	c.Map(&syUser)
 }
 
 func getAccessToken() string {
@@ -148,7 +148,7 @@ func getAccessToken() string {
 	body, err := ioutil.ReadAll(resp.Body)
 	checkErr(err)
 
-	wxAccessTokenResp := models.WxAccessTokenResp{}
+	wxAccessTokenResp := WxAccessTokenResp{}
 	err = json.Unmarshal(body, &wxAccessTokenResp)
 	if err != nil {
 		fmt.Println("get access_token error.")
@@ -183,7 +183,7 @@ func getJSTicket() string {
 	body, err := ioutil.ReadAll(resp.Body)
 	checkErr(err)
 
-	wxJSTicketResp := models.WxJSTicketJsonResp{}
+	wxJSTicketResp := WxJSTicketJsonResp{}
 	err = json.Unmarshal(body, &wxJSTicketResp)
 
 	if err != nil || wxJSTicketResp.ErrCode != 0 {

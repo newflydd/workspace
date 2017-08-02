@@ -1,0 +1,79 @@
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=0" />
+    <title>{{.title}}-仓库盘点</title>
+    <link rel="stylesheet" href="https://res.wx.qq.com/open/libs/weui/1.1.2/weui.min.css" type="text/css" />
+    <style type="text/css">
+    .weui-icon-success {
+        color: #009291
+    }
+    .weui-btn_primary {
+        background-color: #009291
+    }
+    .weui-btn_primary:not(.weui-btn_disabled):active {
+        color: hsla(0, 0%, 100%, .6);
+        background-color: #008281
+    }
+    </style>
+</head>
+
+<body>
+    <div class="header" style="padding: 40px;background-color: #009291;color: #fff;">
+        <div style="font:800 32px '微软雅黑';border-bottom:2px solid #fff">
+            赛洋机电&nbsp;&nbsp;
+        </div>
+        <div style="display: inline-block;font:italic 26px '楷体';margin-left: 50px">
+            用心为您服务
+        </div>
+    </div>
+    <div id="main-form">
+        <div class="weui-cells weui-cells_form">
+            <div class="weui-cell">
+                <div class="weui-cell__hd">
+                    <label class="weui-label">仓库名称</label>
+                </div>
+                <div class="weui-cell__bd">
+                    <input id="inp_stockname" class="weui-input" type="text" pattern="([0-9])11" placeholder="请输入您要盘库的仓库名" />
+                </div>
+            </div>
+        </div>
+    </div><a id="btn_search" style="margin:5px" href="javascript:;" class="weui-btn weui-btn_primary">查询</a>
+    <div class="weui-footer">
+        <p class="weui-footer__text" style="margin-top: 20px">Copyright &copy; 2001-2017 saiyang.com.cn</p>
+    </div>
+    <div id="div_loadingToast" style="display:none;">
+        <div class="weui-mask_transparent"></div>
+        <div class="weui-toast">
+            <i class="weui-loading weui-icon_toast"></i>
+            <p class="weui-toast__content">数据加载中</p>
+        </div>
+    </div>
+    <script type="text/javascript" src="https://ojtkyre9w.qnssl.com/resources/js/jquery.min.js"></script>
+    <script type="text/javascript">
+    $(function() {
+        $("#btn_bind").click(function() {
+            $.ajax({
+                type: "post",
+                url: "/api/register",
+                data: { "phone": $("#inp_phone").val(), "id_card_l4": $("#inp_id_card_l4").val(), "openid": "{{.openid}}", "nickname": "{{.nickname}}" },
+                beforeSend: function() {
+                    $("#div_loadingToast").show();
+                },
+                success: function(results) {
+
+                },
+                timeout: 5000,
+                error: function(XMLHttpRequest) {
+                    $("#div_loadingToast").hide();
+                    alert(XMLHttpRequest.responseText);
+                },
+                dataType: "json"
+            });
+        });
+    });
+    </script>
+</body>
+
+</html>
