@@ -82,6 +82,23 @@ func ApiRegister(req *http.Request, mysqlConn *gorm.DB) string {
 	return "未找到匹配数据，请与管理部联系添加员工信息。"
 }
 
+func ApiGetStockNames(req *http.Request, mysqlConn *gorm.DB) string {
+	stockNamesLike := req.FormValue("stockNamesLike")
+	theConn := mysqlConn
+	theConn = theConn.Select("distinct(FStockName)")
+	if stockNamesLike != "" {
+		theConn = theConn.Where("FStockName like ?", "%"+stockNamesLike+"%")
+	}
+
+	fitems := []SyItem{}
+	theConn.Find(&fitems)
+
+	jsonstr, err := json.Marshal(fitems)
+	checkErr(err)
+
+	return string(jsonstr)
+}
+
 /* 检索是否绑定，如果账号已绑定就路由到error页面 */
 func checkHasBindToError(syUser *SyUser, mysqlConn *gorm.DB, r render.Render) {
 	mysqlConn.Select("id").Where("openid = ?", syUser.Openid).First(syUser)

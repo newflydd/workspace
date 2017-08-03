@@ -60,7 +60,6 @@ func RouteMartini(m *martini.ClassicMartini) {
 		body, err := ioutil.ReadAll(resp.Body)
 		checkErr(err)
 		updateTime := string(body)
-		fmt.Println(updateTime)
 
 		defer resp.Body.Close()
 
@@ -72,7 +71,7 @@ func RouteMartini(m *martini.ClassicMartini) {
 		signatureStr := fmt.Sprintf("jsapi_ticket=%s&noncestr=%s&timestamp=%d&url=%s", jsapi_ticket, noncestr, timestamp, url)
 		signature := Sha1Encrypt(signatureStr)
 
-		log.Println("user:" + syUser.Name + " into search page")
+		log.Println("user:" + syUser.Name + " into search page@" + time.Now().Format("2006-01-02 15:04:05"))
 
 		newmap := CommonMap
 		newmap["name"] = syUser.Name
@@ -84,20 +83,42 @@ func RouteMartini(m *martini.ClassicMartini) {
 		r.HTML(200, "abc", newmap)
 	})
 
+	/* 仓库盘点页面 */
+	m.Get("/stockcheck.html", authorize, checkHasBind, func(r render.Render, syUser *SyUser, log *log.Logger) {
+		/* 获取mysql中的数据跟新时间 */
+		resp, err := http.Get("http://localhost:3000/api/getUpdateTime")
+		checkErr(err)
+		body, err := ioutil.ReadAll(resp.Body)
+		checkErr(err)
+		updateTime := string(body)
+		fmt.Println(updateTime)
+
+		log.Println("user:" + syUser.Name + " into search page@" + time.Now().Format("2006-01-02 15:04:05"))
+
+		newmap := CommonMap
+		newmap["name"] = syUser.Name
+		newmap["updatetime"] = updateTime
+		r.HTML(200, "stockcheck", newmap)
+	})
+
 	/* 账号绑定页面 */
 	m.Get("/register.html", authorize, checkHasBindToError, func(r render.Render, syUser *SyUser) {
 		newmap := CommonMap
 		newmap["openid"] = syUser.Openid
 		newmap["nickname"] = syUser.NickName
 
+		log.Println("wxuser:" + syUser.NickName + " into register page@" + time.Now().Format("2006-01-02 15:04:05"))
+
 		r.HTML(200, "register", newmap)
 	})
 
+	/* 对整个API系列的请求实行验证中间件，这里中间件相当于拦截器，在中间件中可以使用c.Next()提前执行后面的handler，从而实现后置逻辑 */
 	m.Group("/api", func(r martini.Router) {
 		r.Get("/getStoreData", ApiGetStoreData)   /* 向服务器发送库存查询请求 */
 		r.Get("/getUpdateTime", ApiGetUpdateTime) /* 向服务器请求数据库更新时间 */
 		r.Post("/register", ApiRegister)          /* 向服务器发送账号绑定请求 */
-	})
+		r.Get("/getStockNames", ApiGetStockNames) /* 向服务器请求仓库名列表 */
+	}, authorize, checkHasBind)
 }
 
 func authorize(req *http.Request, r render.Render, c martini.Context) {
@@ -105,6 +126,7 @@ func authorize(req *http.Request, r render.Render, c martini.Context) {
 	req.ParseForm()
 	if req.Form["code"] == nil {
 		r.HTML(200, "error", "没有微信授权信息，请从微信App中访问本应用。")
+		return
 	}
 
 	/* 用code换access_token和openid */
