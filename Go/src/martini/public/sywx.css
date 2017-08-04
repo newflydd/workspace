@@ -1,0 +1,24 @@
+.weui-icon-success {
+    color: #009291
+}
+.weui-btn_primary {
+    background-color: #009291
+}
+.weui-btn_primary:not(.weui-btn_disabled):active {
+    color: hsla(0, 0%, 100%, .6);
+    background-color: #008281
+}
+.weui-media-box__desc {
+    font-size: 16px;
+    line-height: 22px
+}
+.weui-vcode-btn {
+    height: 25px;
+    line-height: 25px
+}
+.weui-btn{
+	margin:5px
+}
+#id_dgStockName{
+	color:#000;
+}

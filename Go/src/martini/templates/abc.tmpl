@@ -6,13 +6,7 @@
         <title>{{.title}}-库存查询</title>
         <!-- 引入 WeUI -->
         <link rel="stylesheet" href="https://res.wx.qq.com/open/libs/weui/1.1.2/weui.min.css"/>
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/dna.js/1.2/dna.css"/>
-        <style type="text/css">
-        	.weui-media-box__desc{font-size: 14px}
-		  	.weui-btn_primary{background-color: #009291}
-		  	.weui-btn_primary:not(.weui-btn_disabled):active{color:hsla(0,0%,100%,.6);background-color:#008281}
-		  	.weui-vcode-btn{height: 25px;line-height: 25px}
-        </style>
+        <link rel="stylesheet" type="text/css" href="/sywx.css">
     </head>
     <body>
 		<div class="header" style="padding: 40px;background-color: #009291;color: #fff;">
@@ -47,20 +41,7 @@
 		
         <a id="btn_search" style="margin:5px" href="javascript:;" class="weui-btn weui-btn_primary">查询</a>
 
-        <div id="container" class="dna-template">
-			<div class="weui-panel">
-			    <div class="weui-panel__bd">
-			        <div class="weui-media-box weui-media-box_text">
-			            <h4 class="weui-media-box__title">~~fname~~</h4>
-						<p class="weui-media-box__desc">~~fnumber~~</p>
-			            <p class="weui-media-box__desc">库存：<b style="color:#000"><span>~~fqty~~</span><span>~~funitname~~</span>&nbsp;|&nbsp;<span>~~fstockname~~</span></b></p>
-						<p class="weui-media-box__desc">
-							型号：<span>~~fmodel~~</span>
-						</p>			           
-			        </div>
-			    </div>
-			</div>
-        </div>
+        <div class="weui-panel weui-panel_access"><div id="fitemList" class="weui-panel__bd"></div></div>
 
         <div class="weui-footer">
 		    <p class="weui-footer__text" style="margin-top: 20px">Copyright &copy; 2001-2017 saiyang.com.cn</p>
@@ -74,10 +55,20 @@
 		    </div>
 		</div>
         <script type="text/javascript" src="https://ojtkyre9w.qnssl.com/resources/js/jquery.min.js"></script>
-        <script type="text/javascript" src="https://cdn.jsdelivr.net/dna.js/1.2/dna.min.js"></script>
         <script type="text/javascript" src="http://res.wx.qq.com/open/js/jweixin-1.2.0.js"></script>
         <script type="text/javascript">
         	$(function(){
+        		var fitemTmpl = `        								
+					<div class="weui-media-box weui-media-box_text">
+						<h4 class="weui-media-box__title">{fname}</h4>
+						<p class="weui-media-box__desc">{fnumber}</p>
+						<p class="weui-media-box__desc">库存：<b style="color:#000"><span>{fqty}</span><span>{funitname}</span>&nbsp;|&nbsp;<span>{fstockname}</span></b></p>
+						<p class="weui-media-box__desc">
+							型号：<span>{fmodel}</span>
+						</p>			           
+					</div>				
+				`;
+
         		$("#btn_search").click(function(){
         			$.ajax({
 			            type : "get",
@@ -87,10 +78,10 @@
 							$("#div_loadingToast").show();
 						},
 						success : function(results){
-							/* 处理数组，迭代添加dom模型 */	
-							dna.empty('container', { fade: false });							
-							dna.clone('container', results);
-
+							$("#fitemList").html();
+							$.each(results, function(i, item){
+		                      $("#fitemList").append(nano(fitemTmpl, item))
+		                    });
 							$("#div_loadingToast").hide();
 						},
 						timeout: 5000,
@@ -131,7 +122,13 @@
 				alert("WxJSAPI loaded error" + res);
 			});
 
-
+			function nano(template, data) {
+		      return template.replace(/\{([\w\.]*)\}/g, function(str, key) {
+		        var keys = key.split("."), v = data[keys.shift()];
+		        for (var i = 0, l = keys.length; i < l; i++) v = v[keys[i]];
+		        return (typeof v !== "undefined" && v !== null) ? v : "";
+		      });
+		    }
         </script>
     </body>
 </html>

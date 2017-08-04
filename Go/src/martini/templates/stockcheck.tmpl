@@ -1,95 +1,150 @@
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
-
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=0" />
     <title>{{.title}}-仓库盘点</title>
     <link rel="stylesheet" href="https://res.wx.qq.com/open/libs/weui/1.1.2/weui.min.css" type="text/css" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/dna.js/1.2/dna.css"/>
-    <style type="text/css">
-    .weui-icon-success {
-        color: #009291
-    }
-
-    .weui-btn_primary {
-        background-color: #009291
-    }
-
-    .weui-btn_primary:not(.weui-btn_disabled):active {
-        color: hsla(0, 0%, 100%, .6);
-        background-color: #008281
-    }
-    </style>
-</head>
-
-<body>
-    <div class="header" style="padding: 40px;background-color: #009291;color: #fff;">
-        <div style="font:800 32px '微软雅黑';border-bottom:2px solid #fff">赛洋机电&nbsp;&nbsp;</div>
-        <div style="display: inline-block;font:italic 26px '楷体';margin-left: 50px">用心为您服务</div>
-    </div>
-    <div id="main-form">
+    <link rel="stylesheet" type="text/css" href="/sywx.css">
+    <body>
+        <div class="header" style="padding: 40px;background-color: #009291;color: #fff;">
+            <div style="font:800 32px '微软雅黑';border-bottom:2px solid #fff">赛洋机电&nbsp;&nbsp;</div>
+            <div style="display: inline-block;font:italic 26px '楷体';margin-left: 50px">用心为您服务</div>
+        </div>
         <div class="weui-cells__title">操作者：{{.name}}</div>
         <div class="weui-cells__title">数据更新时间：{{.updatetime}}</div>
+        <div id="main-body">
+
+
+
+            <div class="weui-cells weui-cells_form">
+                <div class="weui-cell">
+                    <div class="weui-cell__hd">
+                        <label class="weui-label">仓库名称</label>
+                    </div>
+                    <div class="weui-cell__bd">
+                        <input id="inp_stockname" class="weui-input" type="text" pattern="([0-9])11" placeholder="请输入您要盘点的仓库名" />
+                    </div>
+                </div>
+            </div>
+            <a id="btn_search" style="margin:5px" href="javascript:;" class="weui-btn weui-btn_primary">查询</a>
+            <div id="stockNameList" class="weui-cells"></div>
+        </div>
+        <div class="weui-footer">
+            <p class="weui-footer__text" style="margin-top: 20px">Copyright &copy; 2001-2017 saiyang.com.cn</p>
+        </div>
+        <div id="div_loadingToast" style="display:none;">
+            <div class="weui-mask_transparent"></div>
+            <div class="weui-toast">
+                <i class="weui-loading weui-icon_toast"></i>
+                <p class="weui-toast__content">数据加载中</p>
+            </div>
+        </div>
+        <div id="dg_createCheck" style="display: none;">
+            <div class="weui-mask"></div>
+            <div class="weui-dialog">
+                <div class="weui-dialog__hd"><strong class="weui-dialog__title">创建盘点单</strong></div>
+                <div class="weui-dialog__bd">是否创建&nbsp;<span id="id_dgStockName"></span>&nbsp;盘点单
+                    <br/>盘点结束后将自动汇总盘点数据发往管理部邮箱。</div>
+                <div class="weui-dialog__ft">
+                    <a href="javascript:$('#dg_createCheck').hide();" class="weui-dialog__btn weui-dialog__btn_default">取消</a>
+                    <a href="javascript:createCheck();" class="weui-dialog__btn weui-dialog__btn_primary">确认</a>
+                </div>
+            </div>
+        </div>
+        <script type="text/javascript" src="https://ojtkyre9w.qnssl.com/resources/js/jquery.min.js"></script>
+        <script type="text/javascript">
+        stockName = "";
+        mainBodyHtml = "";
+        stockNameTmpl = `
+          <a class="weui-cell weui-cell_access href="javascript:;">
+          <div class="weui-cell__bd">
+            <p>{fstockname}</p>
+          </div>
+          <div class="weui-cell__ft">
+          </div>
+          </a>
+        `;
+        stockCheckFormTmpl = `
+        <div class="weui-cells__title">盘点仓库：{stockName}</div>
+        <div class="weui-cells__title">盘点单号：{stockCheckId}号</div>
         <div class="weui-cells weui-cells_form">
             <div class="weui-cell">
                 <div class="weui-cell__hd">
-                    <label class="weui-label">仓库名称</label>
+                    <label class="weui-label">物品编码</label>
                 </div>
                 <div class="weui-cell__bd">
-                    <input id="inp_stockname" class="weui-input" type="text" pattern="([0-9])11" placeholder="请输入您要盘点的仓库名" />
+                    <input id="inp_fnumber" class="weui-input" type="text" pattern="([0-9]|.)*" placeholder="K3物料编号，精确匹配" />
+                </div>
+                <div class="weui-cell__ft">
+                    <button id="btn_scan" class="weui-vcode-btn"><img src="/scan.png" height="25px" /></button>
+                </div>
+            </div>
+            <div class="weui-cell">
+                <div class="weui-cell__hd"><label class="weui-label">现场数量</label></div>
+                <div class="weui-cell__bd">
+                    <input id="inp_fcount" class="weui-input" type="number" pattern="([0-9]|.)*" placeholder="请仔细盘点数量，录入后无法撤销"/>
                 </div>
             </div>
         </div>
-    </div>
-    <a id="btn_search" style="margin:5px" href="javascript:;" class="weui-btn weui-btn_primary">查询</a>
-    <div class="weui-cells">
-        <a id="container" class="weui-cell weui-cell_access dna-template" href="javascript:;">
-            <div class="weui-cell__bd">
-                <p>~~fstockname~~</p>
-            </div>
-            <div class="weui-cell__ft">
-            </div>
-        </a>
-    </div>
-    <div class="weui-footer">
-        <p class="weui-footer__text" style="margin-top: 20px">Copyright &copy; 2001-2017 saiyang.com.cn</p>
-    </div>
-    <div id="div_loadingToast" style="display:none;">
-        <div class="weui-mask_transparent"></div>
-        <div class="weui-toast">
-            <i class="weui-loading weui-icon_toast"></i>
-            <p class="weui-toast__content">数据加载中</p>
-        </div>
-    </div>
-    <script type="text/javascript" src="https://ojtkyre9w.qnssl.com/resources/js/jquery.min.js"></script>
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/dna.js/1.2/dna.min.js"></script>
-    <script type="text/javascript">
-    $(function() {
-        $("#btn_search").click(function() {
-            $.ajax({
-                type: "get",
-                url: "/api/getStockNames",
-                data: {
-                    "stockNamesLike": $("#inp_stockname").val()
-                },
-                beforeSend: function() {
-                    $("#div_loadingToast").show();
-                },
-                success: function(results) {
-                    dna.empty('container', { fade: false });
-                    dna.clone('container', results);
-                    $("#div_loadingToast").hide();
-                },
-                timeout: 5000,
-                error: function(XMLHttpRequest) {
-                    $("#div_loadingToast").hide();
-                    alert(XMLHttpRequest.responseText);
-                },
-                dataType: "json"
+        <a id="btn_addCheck" href="javascript:;" class="weui-btn weui-btn_primary">录入数据</a>
+        <a id="btn_overCheck" href="javascript:;" class="weui-btn weui-btn_warn">结束盘点</a>
+        <div id="stockCheckList" class="weui-cells"></div>
+        `;
+        $(function() {
+            mainBodyHtml = $("#main-body").html();
+
+            $(window).on("hashchange", function() {
+                $("#main-body").html(mainBodyHtml);
+            });
+
+            $("#main-body").on("click", "#btn_search", function() {
+                $.ajax({
+                    type: "get",
+                    url: "/api/getStockNames",
+                    data: {
+                        "stockNamesLike": $("#inp_stockname").val()
+                    },
+                    beforeSend: function() {
+                        $("#div_loadingToast").show();
+                    },
+                    success: function(results) {
+                        $("#stockNameList").html("");
+                        $.each(results, function(i, item) {
+                            $("#stockNameList").append(nano(stockNameTmpl, item))
+                        });
+                        $("#div_loadingToast").hide();
+                    },
+                    timeout: 5000,
+                    error: function(XMLHttpRequest) {
+                        $("#div_loadingToast").hide();
+                        alert(XMLHttpRequest.responseText);
+                    },
+                    dataType: "json"
+                });
+            });
+
+            $("#main-body").on("click", ".weui-cell_access", function() {
+                stockName = $(this).find("p").html();
+                $("#id_dgStockName").html(stockName);
+                $("#dg_createCheck").show();
             });
         });
-    });
-    </script>
-</body>
 
+        function createCheck() {
+            history.pushState(null, null, location.href + "#" + stockName);
+            $("#main-body").html(nano(stockCheckFormTmpl, {"stockName":stockName, "stockCheckId":"001"}));
+            $("#dg_createCheck").hide();
+        }
+
+        /* 最精简的模板引擎 */
+        function nano(template, data) {
+            return template.replace(/\{([\w\.]*)\}/g, function(str, key) {
+                var keys = key.split("."),
+                    v = data[keys.shift()];
+                for (var i = 0, l = keys.length; i < l; i++) v = v[keys[i]];
+                return (typeof v !== "undefined" && v !== null) ? v : "";
+            });
+        }
+        </script>
+    </body>
 </html>
