@@ -13,9 +13,6 @@
         <div class="weui-cells__title">操作者：{{.name}}</div>
         <div class="weui-cells__title">数据更新时间：{{.updatetime}}</div>
         <div id="main-body">
-
-
-
             <div class="weui-cells weui-cells_form">
                 <div class="weui-cell">
                     <div class="weui-cell__hd">
@@ -52,6 +49,7 @@
             </div>
         </div>
         <script type="text/javascript" src="https://ojtkyre9w.qnssl.com/resources/js/jquery.min.js"></script>
+        <script type="text/javascript" src="http://res.wx.qq.com/open/js/jweixin-1.2.0.js"></script>
         <script type="text/javascript">
         stockName = "";
         mainBodyHtml = "";
@@ -73,10 +71,16 @@
                     <label class="weui-label">物品编码</label>
                 </div>
                 <div class="weui-cell__bd">
-                    <input id="inp_fnumber" class="weui-input" type="text" pattern="([0-9]|.)*" placeholder="K3物料编号，精确匹配" />
+                    <input id="inp_fnumber" disabled="disabled" class="weui-input" placeholder="请扫码输入" />
                 </div>
                 <div class="weui-cell__ft">
                     <button id="btn_scan" class="weui-vcode-btn"><img src="/scan.png" height="25px" /></button>
+                </div>
+            </div>
+            <div class="weui-cell">
+                <div class="weui-cell__hd"><label class="weui-label">数据库数量</label></div>
+                <div class="weui-cell__bd">
+                    <input id="inp_fqty" disabled="disabled" class="weui-input" placeholder="扫码后自动显示"/>
                 </div>
             </div>
             <div class="weui-cell">
@@ -128,6 +132,53 @@
                 $("#id_dgStockName").html(stockName);
                 $("#dg_createCheck").show();
             });
+
+            $("#main-body").on("click", "#btn_scan", function(){
+              wx.scanQRCode({
+                  needResult: 1, // 默认为0，扫描结果由微信处理，1则直接返回扫描结果，
+                  scanType: ["qrCode","barCode"], // 可以指定扫二维码还是一维码，默认二者都有
+                  success: function (res) {
+                    var result = res.resultStr; // 当needResult 为 1 时，扫码返回的结果
+                    fnumber = result.split(",",2)[1];
+                    $("#inp_fnumber").val(fnumber);
+                    $.ajax({
+                      type : "get",
+                      url  : "/api/getStoreData",
+                      data : {"fnumber": $("#inp_fnumber").val(), "fstockname": $("#inp_fstockname").val()},
+                      beforeSend  : function(){
+                        $("#div_loadingToast").show();
+                      },
+                      success : function(results){
+                        $("#inp_fqty").val(results[0].fqty);
+                        $("#div_loadingToast").hide();
+                      },
+                      timeout: 5000,
+                      error: function(XMLHttpRequest){
+                        $("#div_loadingToast").hide();
+                        alert(XMLHttpRequest.responseText);
+                      },
+                      dataType : "json"
+                    });
+                }
+              });
+            });
+        });
+
+        wx.config({
+            debug: false, // 开启调试模式,调用的所有api的返回值会在客户端alert出来，若要查看传入的参数，可以在pc端打开，参数信息会通过log打出，仅在pc端时才会打印。
+            appId: 'wxf35eb6c638780fbf', // 必填，公众号的唯一标识
+            timestamp: '{{.timestamp}}', // 必填，生成签名的时间戳
+            nonceStr: '{{.nonceStr}}', // 必填，生成签名的随机串
+            signature: '{{.signature}}',// 必填，签名，见附录1
+            jsApiList: ['scanQRCode'] // 必填，需要使用的JS接口列表，所有JS接口列表见附录2
+        });
+
+        wx.ready(function(){
+            //alert("WxJSAPI loaded ok");
+        });
+
+        wx.error(function(res){
+            alert("WxJSAPI loaded error" + res);
         });
 
         function createCheck() {

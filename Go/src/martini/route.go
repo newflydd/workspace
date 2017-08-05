@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"github.com/go-martini/martini"
+	"github.com/jinzhu/gorm"
 	"github.com/martini-contrib/render"
 	"io/ioutil"
 	"log"
@@ -53,15 +54,9 @@ func RouteMartini(m *martini.ClassicMartini) {
 	})
 
 	/* 使用render中间件，渲染模板页面，模板路径默认为/templates/ */
-	m.Get("/abc.html", authorize, checkHasBind, func(r render.Render, syUser *SyUser, log *log.Logger) {
+	m.Get("/abc.html", authorize, checkHasBind, func(r render.Render, syUser *SyUser, log *log.Logger, mysqlConn *gorm.DB) {
 		/* 获取mysql中的数据跟新时间 */
-		resp, err := http.Get("http://localhost:3000/api/getUpdateTime")
-		checkErr(err)
-		body, err := ioutil.ReadAll(resp.Body)
-		checkErr(err)
-		updateTime := string(body)
-
-		defer resp.Body.Close()
+		updateTime := ApiGetUpdateTime(mysqlConn)
 
 		/* 构造JSTicket签名 */
 		noncestr := GetRandomString(16)
@@ -84,20 +79,26 @@ func RouteMartini(m *martini.ClassicMartini) {
 	})
 
 	/* 仓库盘点页面 */
-	m.Get("/stockcheck.html", authorize, checkHasBind, func(r render.Render, syUser *SyUser, log *log.Logger) {
+	m.Get("/stockcheck.html", authorize, checkHasBind, func(r render.Render, syUser *SyUser, log *log.Logger, mysqlConn *gorm.DB) {
 		/* 获取mysql中的数据跟新时间 */
-		resp, err := http.Get("http://localhost:3000/api/getUpdateTime")
-		checkErr(err)
-		body, err := ioutil.ReadAll(resp.Body)
-		checkErr(err)
-		updateTime := string(body)
-		fmt.Println(updateTime)
+		updateTime := ApiGetUpdateTime(mysqlConn)
+
+		/* 构造JSTicket签名 */
+		noncestr := GetRandomString(16)
+		jsapi_ticket := getJSTicket()
+		timestamp := time.Now().Unix()
+		url := "http://www.codingcrafts.com/stockcheck.html?code=" + syUser.Code + "&state=0"
+		signatureStr := fmt.Sprintf("jsapi_ticket=%s&noncestr=%s&timestamp=%d&url=%s", jsapi_ticket, noncestr, timestamp, url)
+		signature := Sha1Encrypt(signatureStr)
 
 		log.Println("user:" + syUser.Name + " into search page@" + time.Now().Format("2006-01-02 15:04:05"))
 
 		newmap := CommonMap
 		newmap["name"] = syUser.Name
 		newmap["updatetime"] = updateTime
+		newmap["timestamp"] = timestamp
+		newmap["nonceStr"] = noncestr
+		newmap["signature"] = signature
 		r.HTML(200, "stockcheck", newmap)
 	})
 
@@ -115,10 +116,9 @@ func RouteMartini(m *martini.ClassicMartini) {
 	/* 对整个API系列的请求实行验证中间件，这里中间件相当于拦截器，在中间件中可以使用c.Next()提前执行后面的handler，从而实现后置逻辑 */
 	m.Group("/api", func(r martini.Router) {
 		r.Get("/getStoreData", ApiGetStoreData)   /* 向服务器发送库存查询请求 */
-		r.Get("/getUpdateTime", ApiGetUpdateTime) /* 向服务器请求数据库更新时间 */
 		r.Post("/register", ApiRegister)          /* 向服务器发送账号绑定请求 */
 		r.Get("/getStockNames", ApiGetStockNames) /* 向服务器请求仓库名列表 */
-	}, authorize, checkHasBind)
+	})
 }
 
 func authorize(req *http.Request, r render.Render, c martini.Context) {
@@ -147,7 +147,6 @@ func authorize(req *http.Request, r render.Render, c martini.Context) {
 	/* 解析微信返回的json，其中有用户数据 */
 	body, err = ioutil.ReadAll(resp.Body)
 	checkErr(err)
-	fmt.Println(string(body))
 	syUser := SyUser{}
 	err = json.Unmarshal(body, &syUser)
 	checkErr(err)
